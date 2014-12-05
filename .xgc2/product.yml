@@ -1,7 +1,7 @@
 schema: xgc2.product.v1
 id: xgc2-robot-visualization
 name: XGC2 Robot Visualization
-version: 0.1.0-15
+version: 0.1.0-16
 kind: ros1-apt
 summary: Reusable ROS Noetic RViz marker visualizers for XGC2 robot assets.
 ros:
@@ -50,4 +50,4 @@ release:
     xgc2-mecanum-description: rebuild
     xgc2-scout-description: verify
   apt_versions:
-    focal: 0.1.0-15
+    focal: 0.1.0-16
