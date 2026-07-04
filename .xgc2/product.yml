@@ -20,7 +20,7 @@ apt:
   - ros-noetic-std-msgs
   - ros-noetic-visualization-msgs
   - ros-noetic-xgc2-fs150-description
-  - ros-noetic-xgc2-scout-description
+  - ros-noetic-xgc2-scout-description (>= 0.4.10-1)
 usage:
   install: 'sudo apt update
 
