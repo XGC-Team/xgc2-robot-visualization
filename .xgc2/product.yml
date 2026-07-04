@@ -1,0 +1,38 @@
+schema: xgc2.product.v1
+id: xgc2-robot-visualization
+name: XGC2 Robot Visualization
+version: 0.1.0-1
+kind: ros1-apt
+summary: Reusable ROS Noetic RViz marker visualizers for XGC2 robot assets.
+ros:
+  distro: noetic
+  packages:
+  - xgc2_robot_visualization
+apt:
+  distribution: focal
+  install:
+  - ros-noetic-xgc2-robot-visualization
+  packages:
+  - ros-noetic-xgc2-robot-visualization
+  depends:
+  - ros-noetic-geometry-msgs
+  - ros-noetic-roscpp
+  - ros-noetic-std-msgs
+  - ros-noetic-visualization-msgs
+  - ros-noetic-xgc2-fs150-description
+  - ros-noetic-xgc2-scout-description
+usage:
+  install: 'sudo apt update
+
+    sudo apt install ros-noetic-xgc2-robot-visualization
+
+    '
+  smoke_test: 'rospack find xgc2_robot_visualization
+
+    '
+ownership:
+  paths:
+  - /opt/ros/noetic/share/xgc2_robot_visualization
+  - /opt/ros/noetic/include/xgc2_robot_visualization
+  - /opt/ros/noetic/lib/libfs150_uav_visualizer.so
+  - /opt/ros/noetic/lib/libscout_ugv_visualizer.so

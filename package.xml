@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>xgc2_robot_visualization</name>
+  <version>0.1.0</version>
+  <description>Reusable RViz marker visualizers for XGC2 robot assets.</description>
+
+  <maintainer email="lxk@xiaokang.local">lxk</maintainer>
+  <license>Proprietary</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>fs150_description</depend>
+  <depend>geometry_msgs</depend>
+  <depend>roscpp</depend>
+  <depend>scout_description</depend>
+  <depend>std_msgs</depend>
+  <depend>visualization_msgs</depend>
+
+  <export/>
+</package>
