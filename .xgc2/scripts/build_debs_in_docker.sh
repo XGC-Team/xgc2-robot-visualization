@@ -72,9 +72,7 @@ docker run --rm \
       ros-noetic-roscpp \
       ros-noetic-rospack \
       ros-noetic-std-msgs \
-      ros-noetic-visualization-msgs \
-      ros-noetic-xgc2-fs150-description \
-      ros-noetic-xgc2-scout-description
+      ros-noetic-visualization-msgs
 
     rm -rf /workspace/work/src /workspace/work/build /workspace/work/devel /workspace/work/install-root
     mkdir -p /workspace/work/src/xgc2_robot_visualization

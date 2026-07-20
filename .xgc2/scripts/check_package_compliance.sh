@@ -6,8 +6,10 @@ grep -q '^version: 0.1.0-5$' .xgc2/product.yml
 grep -q '<name>xgc2_robot_visualization</name>' package.xml
 grep -q 'ros-noetic-xgc2-fs150-description (>= 0.1.0-3)' .xgc2/product.yml
 grep -q 'ros-noetic-xgc2-scout-description' .xgc2/product.yml
-grep -q '<depend>fs150_description</depend>' package.xml
-grep -q '<depend>scout_description</depend>' package.xml
+grep -q '^  recommends:$' .xgc2/product.yml
+grep -q '^Recommends:.*xgc2-fs150-description.*xgc2-scout-description' .xgc2/scripts/package_debs.sh
+grep -q '<exec_depend>fs150_description</exec_depend>' package.xml
+grep -q '<exec_depend>scout_description</exec_depend>' package.xml
 if grep -R 'gazebo_msgs\\|mavros_msgs' include src package.xml CMakeLists.txt >/tmp/xgc2-robot-visualization-forbidden-deps.txt; then
   echo "xgc2_robot_visualization must not depend on Gazebo or MAVROS." >&2
   cat /tmp/xgc2-robot-visualization-forbidden-deps.txt >&2

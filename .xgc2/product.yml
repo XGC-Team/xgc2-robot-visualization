@@ -19,6 +19,7 @@ apt:
   - ros-noetic-roscpp
   - ros-noetic-std-msgs
   - ros-noetic-visualization-msgs
+  recommends:
   - ros-noetic-xgc2-fs150-description (>= 0.1.0-3)
   - ros-noetic-xgc2-scout-description (>= 0.4.10-8)
 usage:
@@ -36,3 +37,10 @@ ownership:
   - /opt/ros/noetic/include/xgc2_robot_visualization
   - /opt/ros/noetic/lib/libfs150_uav_visualizer.so
   - /opt/ros/noetic/lib/libscout_ugv_visualizer.so
+release:
+  requires:
+  - xgc2-fs150-description
+  - xgc2-scout-description
+  dependency_policy:
+    xgc2-fs150-description: verify
+    xgc2-scout-description: verify
