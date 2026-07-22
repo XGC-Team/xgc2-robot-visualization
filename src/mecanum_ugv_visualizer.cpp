@@ -188,8 +188,8 @@ const std::vector<MeshPart>& fixedParts() {
     return parts;
 }
 
-// The order is intentionally the Gazebo plugin's joint order: UL, UR, LL,
-// LR. That lets the visual phases use the simulator's wheel equations exactly.
+// Preserve the SSS visualization order and signs: UL, UR, LL, LR. The phases
+// are reconstructed from body motion and never depend on simulator joints.
 const std::vector<WheelVisual>& mecanumWheels() {
     static const std::vector<WheelVisual> wheels = {
         {"upper_left_wheel", kLeftWheelMesh, makePose(0.150, 0.150, 0.05, 0.0, 0.0, 0.0)},
@@ -208,7 +208,7 @@ std::string trailingNumber(const std::string& name) {
 
 std::string displayName(const MecanumVisualState& state) {
     const std::string number = trailingNumber(state.name);
-    return "Mecanum " + (number.empty() ? state.name : number);
+    return "UGV " + (number.empty() ? state.name : number);
 }
 
 } // namespace

@@ -19,6 +19,10 @@ const visualization_msgs::Marker* findMarker(const visualization_msgs::MarkerArr
     return nullptr;
 }
 
+double quaternionSimilarity(const geometry_msgs::Quaternion& lhs, const geometry_msgs::Quaternion& rhs) {
+    return std::abs(lhs.x * rhs.x + lhs.y * rhs.y + lhs.z * rhs.z + lhs.w * rhs.w);
+}
+
 TEST(MecanumUgvVisualizer, UsesNexusMeshesAndMecanumWheelKinematics) {
     MecanumUgvVisualizer visualizer(MecanumUgvVisualizer::Config{});
     MecanumVisualState state;
@@ -33,9 +37,16 @@ TEST(MecanumUgvVisualizer, UsesNexusMeshesAndMecanumWheelKinematics) {
     const visualization_msgs::Marker* body = findMarker(initial_markers, "ugv2_mecanum_base_link");
     const visualization_msgs::Marker* upper_left = findMarker(initial_markers, "ugv2_mecanum_upper_left_wheel");
     const visualization_msgs::Marker* upper_right = findMarker(initial_markers, "ugv2_mecanum_upper_right_wheel");
+    const visualization_msgs::Marker* lower_left = findMarker(initial_markers, "ugv2_mecanum_lower_left_wheel");
+    const visualization_msgs::Marker* lower_right = findMarker(initial_markers, "ugv2_mecanum_lower_right_wheel");
+    const visualization_msgs::Marker* label = findMarker(initial_markers, "ugv2_label");
     ASSERT_NE(body, nullptr);
     ASSERT_NE(upper_left, nullptr);
     ASSERT_NE(upper_right, nullptr);
+    ASSERT_NE(lower_left, nullptr);
+    ASSERT_NE(lower_right, nullptr);
+    ASSERT_NE(label, nullptr);
+    EXPECT_EQ(label->text, "UGV 2");
     EXPECT_EQ(body->mesh_resource,
               "package://mecanum_description/meshes/nexus_base_link.STL");
     EXPECT_DOUBLE_EQ(body->scale.x, 0.001);
@@ -54,11 +65,21 @@ TEST(MecanumUgvVisualizer, UsesNexusMeshesAndMecanumWheelKinematics) {
         findMarker(moving_markers, "ugv2_mecanum_upper_left_wheel");
     const visualization_msgs::Marker* moving_lower_left =
         findMarker(moving_markers, "ugv2_mecanum_lower_left_wheel");
+    const visualization_msgs::Marker* moving_upper_right =
+        findMarker(moving_markers, "ugv2_mecanum_upper_right_wheel");
+    const visualization_msgs::Marker* moving_lower_right =
+        findMarker(moving_markers, "ugv2_mecanum_lower_right_wheel");
     ASSERT_NE(moving_upper_left, nullptr);
     ASSERT_NE(moving_lower_left, nullptr);
+    ASSERT_NE(moving_upper_right, nullptr);
+    ASSERT_NE(moving_lower_right, nullptr);
     EXPECT_GT(std::abs(moving_upper_left->pose.orientation.y), 0.1);
     EXPECT_GT(std::abs(moving_lower_left->pose.orientation.y), 0.1);
     EXPECT_LT(moving_upper_left->pose.orientation.y * moving_lower_left->pose.orientation.y, 0.0);
+    EXPECT_LT(quaternionSimilarity(upper_left->pose.orientation, moving_upper_left->pose.orientation), 0.99);
+    EXPECT_LT(quaternionSimilarity(upper_right->pose.orientation, moving_upper_right->pose.orientation), 0.99);
+    EXPECT_LT(quaternionSimilarity(lower_left->pose.orientation, moving_lower_left->pose.orientation), 0.99);
+    EXPECT_LT(quaternionSimilarity(lower_right->pose.orientation, moving_lower_right->pose.orientation), 0.99);
 }
 
 } // namespace
