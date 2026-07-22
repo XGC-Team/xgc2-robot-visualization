@@ -37,7 +37,7 @@ TEST(MecanumUgvVisualizer, UsesNexusMeshesAndMecanumWheelKinematics) {
     ASSERT_NE(upper_left, nullptr);
     ASSERT_NE(upper_right, nullptr);
     EXPECT_EQ(body->mesh_resource,
-              "package://gazebo_sim_mecanum/models/xgc2_mecanum_ugv/meshes/nexus_base_link.STL");
+              "package://mecanum_description/meshes/nexus_base_link.STL");
     EXPECT_DOUBLE_EQ(body->scale.x, 0.001);
     EXPECT_NE(upper_left->mesh_resource.find("mecanum_wheel_left.STL"), std::string::npos);
     EXPECT_NE(upper_right->mesh_resource.find("mecanum_wheel_right.STL"), std::string::npos);

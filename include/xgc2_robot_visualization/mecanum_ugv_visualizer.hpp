@@ -31,7 +31,7 @@ class MecanumUgvVisualizer {
     struct Config {
         std::string frame_id{"world"};
         // The Nexus STL assets are authored in millimetres; this matches the
-        // 0.001 mesh scale in gazebo_sim_mecanum/model.sdf.
+        // 0.001 scale for the millimetre-authored mecanum_description meshes.
         double mesh_scale{0.001};
         double path_publish_rate{10.0};
         int path_limit{3000};

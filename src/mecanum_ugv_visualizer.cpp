@@ -13,13 +13,13 @@
 namespace xgc2_robot_visualization {
 namespace {
 
-constexpr const char* kBaseMesh = "package://gazebo_sim_mecanum/models/xgc2_mecanum_ugv/meshes/nexus_base_link.STL";
-constexpr const char* kShaftMesh = "package://gazebo_sim_mecanum/models/xgc2_mecanum_ugv/meshes/wheel_shaft.STL";
+constexpr const char* kBaseMesh = "package://mecanum_description/meshes/nexus_base_link.STL";
+constexpr const char* kShaftMesh = "package://mecanum_description/meshes/wheel_shaft.STL";
 constexpr const char* kLeftWheelMesh =
-    "package://gazebo_sim_mecanum/models/xgc2_mecanum_ugv/meshes/mecanum_wheel_left.STL";
+    "package://mecanum_description/meshes/mecanum_wheel_left.STL";
 constexpr const char* kRightWheelMesh =
-    "package://gazebo_sim_mecanum/models/xgc2_mecanum_ugv/meshes/mecanum_wheel_right.STL";
-constexpr const char* kRangeSensorMesh = "package://gazebo_sim_mecanum/models/xgc2_mecanum_ugv/meshes/urm04.STL";
+    "package://mecanum_description/meshes/mecanum_wheel_right.STL";
+constexpr const char* kRangeSensorMesh = "package://mecanum_description/meshes/urm04.STL";
 
 struct MeshPart {
     const char* name;

@@ -15,7 +15,7 @@
   <depend>visualization_msgs</depend>
 
   <exec_depend>fs150_description</exec_depend>
-  <exec_depend>gazebo_sim_mecanum</exec_depend>
+  <exec_depend>mecanum_description</exec_depend>
   <exec_depend>scout_description</exec_depend>
 
   <test_depend>gtest</test_depend>
