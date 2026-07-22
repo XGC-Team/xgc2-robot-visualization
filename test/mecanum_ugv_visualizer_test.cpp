@@ -1,0 +1,70 @@
+#include "xgc2_robot_visualization/mecanum_ugv_visualizer.hpp"
+
+#include <cmath>
+#include <string>
+#include <vector>
+
+#include <gtest/gtest.h>
+#include <visualization_msgs/Marker.h>
+
+namespace xgc2_robot_visualization {
+namespace {
+
+const visualization_msgs::Marker* findMarker(const visualization_msgs::MarkerArray& markers, const std::string& name) {
+    for (const visualization_msgs::Marker& marker : markers.markers) {
+        if (marker.ns == name) {
+            return &marker;
+        }
+    }
+    return nullptr;
+}
+
+TEST(MecanumUgvVisualizer, UsesNexusMeshesAndMecanumWheelKinematics) {
+    MecanumUgvVisualizer visualizer(MecanumUgvVisualizer::Config{});
+    MecanumVisualState state;
+    state.name = "ugv2";
+    state.pose.orientation.w = 1.0;
+    state.stamp = ros::Time(1, 0);
+
+    visualization_msgs::MarkerArray initial_markers;
+    std::vector<geometry_msgs::TransformStamped> initial_transforms;
+    visualizer.append(state, &initial_markers, &initial_transforms);
+
+    const visualization_msgs::Marker* body = findMarker(initial_markers, "ugv2_mecanum_base_link");
+    const visualization_msgs::Marker* upper_left = findMarker(initial_markers, "ugv2_mecanum_upper_left_wheel");
+    const visualization_msgs::Marker* upper_right = findMarker(initial_markers, "ugv2_mecanum_upper_right_wheel");
+    ASSERT_NE(body, nullptr);
+    ASSERT_NE(upper_left, nullptr);
+    ASSERT_NE(upper_right, nullptr);
+    EXPECT_EQ(body->mesh_resource,
+              "package://gazebo_sim_mecanum/models/xgc2_mecanum_ugv/meshes/nexus_base_link.STL");
+    EXPECT_DOUBLE_EQ(body->scale.x, 0.001);
+    EXPECT_NE(upper_left->mesh_resource.find("mecanum_wheel_left.STL"), std::string::npos);
+    EXPECT_NE(upper_right->mesh_resource.find("mecanum_wheel_right.STL"), std::string::npos);
+    EXPECT_EQ(body->mesh_resource.find("scout_description"), std::string::npos);
+
+    state.stamp = ros::Time(2, 0);
+    state.has_motion_hint = true;
+    state.lateral_velocity_m_s = 0.5;
+    visualization_msgs::MarkerArray moving_markers;
+    std::vector<geometry_msgs::TransformStamped> moving_transforms;
+    visualizer.append(state, &moving_markers, &moving_transforms);
+
+    const visualization_msgs::Marker* moving_upper_left =
+        findMarker(moving_markers, "ugv2_mecanum_upper_left_wheel");
+    const visualization_msgs::Marker* moving_lower_left =
+        findMarker(moving_markers, "ugv2_mecanum_lower_left_wheel");
+    ASSERT_NE(moving_upper_left, nullptr);
+    ASSERT_NE(moving_lower_left, nullptr);
+    EXPECT_GT(std::abs(moving_upper_left->pose.orientation.y), 0.1);
+    EXPECT_GT(std::abs(moving_lower_left->pose.orientation.y), 0.1);
+    EXPECT_LT(moving_upper_left->pose.orientation.y * moving_lower_left->pose.orientation.y, 0.0);
+}
+
+} // namespace
+} // namespace xgc2_robot_visualization
+
+int main(int argc, char** argv) {
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

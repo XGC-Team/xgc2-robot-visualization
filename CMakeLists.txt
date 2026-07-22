@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES fs150_uav_visualizer scout_ugv_visualizer
+  LIBRARIES fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer
   CATKIN_DEPENDS geometry_msgs roscpp std_msgs visualization_msgs
 )
 
@@ -41,7 +41,17 @@ target_link_libraries(scout_ugv_visualizer
   ${catkin_LIBRARIES}
 )
 
-install(TARGETS fs150_uav_visualizer scout_ugv_visualizer
+add_library(mecanum_ugv_visualizer
+  src/mecanum_ugv_visualizer.cpp
+)
+add_dependencies(mecanum_ugv_visualizer
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(mecanum_ugv_visualizer
+  ${catkin_LIBRARIES}
+)
+
+install(TARGETS fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -50,3 +60,10 @@ install(TARGETS fs150_uav_visualizer scout_ugv_visualizer
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
+
+if(CATKIN_ENABLE_TESTING)
+  catkin_add_gtest(mecanum_ugv_visualizer_test test/mecanum_ugv_visualizer_test.cpp)
+  if(TARGET mecanum_ugv_visualizer_test)
+    target_link_libraries(mecanum_ugv_visualizer_test mecanum_ugv_visualizer ${catkin_LIBRARIES})
+  endif()
+endif()

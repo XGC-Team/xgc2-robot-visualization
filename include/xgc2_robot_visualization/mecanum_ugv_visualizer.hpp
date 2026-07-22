@@ -1,0 +1,82 @@
+#pragma once
+
+#include <deque>
+#include <map>
+#include <string>
+#include <vector>
+
+#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Pose.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <ros/time.h>
+#include <visualization_msgs/MarkerArray.h>
+
+namespace xgc2_robot_visualization {
+
+// Body-frame velocities match the Mecanum Gazebo contract: +x drives forward
+// and +y drives left. Keeping this distinct from UgvVisualState prevents a
+// lateral Mecanum command from being rendered as an impossible Scout motion.
+struct MecanumVisualState {
+    std::string name;
+    geometry_msgs::Pose pose;
+    ros::Time stamp;
+    bool has_motion_hint{false};
+    double forward_velocity_m_s{0.0};
+    double lateral_velocity_m_s{0.0};
+    double yaw_rate_rad_s{0.0};
+};
+
+class MecanumUgvVisualizer {
+  public:
+    struct Config {
+        std::string frame_id{"world"};
+        // The Nexus STL assets are authored in millimetres; this matches the
+        // 0.001 mesh scale in gazebo_sim_mecanum/model.sdf.
+        double mesh_scale{0.001};
+        double path_publish_rate{10.0};
+        int path_limit{3000};
+        double visual_wheel_radius{0.05};
+        double visual_wheelbase_plus_track{0.30};
+        double wheel_motion_deadband{0.02};
+        double max_visual_wheel_speed_rad_s{35.0};
+    };
+
+    explicit MecanumUgvVisualizer(const Config& config);
+
+    void append(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers,
+                std::vector<geometry_msgs::TransformStamped>* transforms);
+
+  private:
+    struct ModelVisualState {
+        ros::Time last_update_stamp;
+        ros::Time last_path_stamp;
+        std::deque<geometry_msgs::Point> path;
+        std::vector<double> wheel_phases;
+        geometry_msgs::Pose previous_pose;
+        bool has_previous_pose{false};
+    };
+
+    struct MotionEstimate {
+        double forward_velocity_m_s{0.0};
+        double lateral_velocity_m_s{0.0};
+        double yaw_rate_rad_s{0.0};
+    };
+
+    MotionEstimate estimateMotion(const ModelVisualState& visual, const MecanumVisualState& state, double dt) const;
+    void updateWheelPhases(ModelVisualState* visual, const MecanumVisualState& state, const MotionEstimate& motion,
+                           double dt) const;
+    void updatePath(ModelVisualState* visual, const MecanumVisualState& state) const;
+    void addBodyMarkers(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers,
+                        std::vector<geometry_msgs::TransformStamped>* transforms) const;
+    void addWheelMarkers(const MecanumVisualState& state, const ModelVisualState& visual,
+                         visualization_msgs::MarkerArray* markers,
+                         std::vector<geometry_msgs::TransformStamped>* transforms) const;
+    void addPathMarker(const MecanumVisualState& state, const ModelVisualState& visual,
+                       visualization_msgs::MarkerArray* markers) const;
+    void addLabelMarker(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers) const;
+
+    Config config_;
+    std::map<std::string, ModelVisualState> models_;
+};
+
+} // namespace xgc2_robot_visualization
