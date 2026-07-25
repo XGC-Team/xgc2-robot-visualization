@@ -1,5 +1,7 @@
 #include "xgc2_robot_visualization/fs150_uav_visualizer.hpp"
 
+#include "xgc2_robot_visualization/robot_frames.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <regex>
@@ -123,6 +125,17 @@ visualization_msgs::Marker makeMeshMarker(const std::string& ns, int id, const s
     return marker;
 }
 
+// The label anchor travels with the robot and ignores its attitude, so a banked
+// aircraft keeps its name directly overhead instead of swinging it out to the
+// side. Height is the same 0.55 m the label used when it carried absolute
+// world coordinates, so nothing moves on screen.
+geometry_msgs::Pose labelAnchor(const geometry_msgs::Pose& pose) {
+    geometry_msgs::Pose anchor;
+    anchor.position = makePoint(pose.position.x, pose.position.y, pose.position.z + 0.55);
+    anchor.orientation = makeQuaternion(0.0, 0.0, 0.0, 1.0);
+    return anchor;
+}
+
 geometry_msgs::TransformStamped makeTransform(const std::string& parent_frame, const std::string& child_frame,
                                               const geometry_msgs::Pose& pose, const ros::Time& stamp) {
     geometry_msgs::TransformStamped transform;
@@ -164,7 +177,10 @@ void Fs150UavVisualizer::append(const UavVisualState& state, visualization_msgs:
     updateRotorPhases(&visual, state);
     updatePath(&visual, state);
 
-    transforms->push_back(makeTransform(config_.frame_id, state.name + "/base_link", state.pose, state.stamp));
+    transforms->push_back(
+        makeTransform(config_.frame_id, robotBodyFrame(state.name), state.pose, state.stamp));
+    transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(state.name),
+                                        labelAnchor(state.pose), state.stamp));
     addBodyMarker(state, markers);
     addRotorMarkers(state, visual, markers, transforms);
     addPathMarker(state, visual, markers);
@@ -258,13 +274,15 @@ void Fs150UavVisualizer::addPathMarker(const UavVisualState& state, const ModelV
 void Fs150UavVisualizer::addLabelMarker(const UavVisualState& state, visualization_msgs::MarkerArray* markers) const {
     visualization_msgs::Marker marker;
     marker.header.stamp = state.stamp;
-    marker.header.frame_id = config_.frame_id;
+    // The label sits at the origin of its own frame. The offset that used to be
+    // added here now lives in that frame's transform, so the label follows the
+    // robot at the transform rate rather than only when this marker is resent.
+    marker.header.frame_id = robotLabelFrame(state.name);
     marker.ns = state.name + "_label";
     marker.id = 11;
     marker.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
     marker.action = visualization_msgs::Marker::ADD;
-    marker.pose.position =
-        makePoint(state.pose.position.x, state.pose.position.y, state.pose.position.z + 0.55);
+    marker.pose.position = makePoint(0.0, 0.0, 0.0);
     marker.pose.orientation = makeQuaternion(0.0, 0.0, 0.0, 1.0);
     marker.scale.z = 0.32;
     marker.color = makeColor(1.0, 1.0, 1.0, 1.0);
