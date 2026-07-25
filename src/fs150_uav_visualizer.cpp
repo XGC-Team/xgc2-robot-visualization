@@ -174,11 +174,13 @@ void Fs150UavVisualizer::append(const UavVisualState& state, visualization_msgs:
 void Fs150UavVisualizer::updateRotorPhases(ModelVisualState* visual, const UavVisualState& state) const {
     const double dt =
         visual->last_update_stamp.isZero() ? 0.0 : std::max(0.0, (state.stamp - visual->last_update_stamp).toSec());
+    const double rotor_speed =
+        state.rotor_speed_rad_s > 0.0 ? state.rotor_speed_rad_s : config_.rotor_speed_rad_s;
     if (state.rotors_active && dt > 0.0) {
         const std::vector<RotorVisual>& rotors = fs150Rotors();
         for (std::size_t i = 0; i < rotors.size(); ++i) {
             visual->rotor_phases[i] =
-                std::fmod(visual->rotor_phases[i] + rotors[i].direction * config_.rotor_speed_rad_s * dt,
+                std::fmod(visual->rotor_phases[i] + rotors[i].direction * rotor_speed * dt,
                           2.0 * M_PI);
         }
     }

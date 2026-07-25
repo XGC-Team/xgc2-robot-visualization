@@ -17,6 +17,11 @@ struct UavVisualState {
     std::string name;
     geometry_msgs::Pose pose;
     bool rotors_active{false};
+    // Spin rate for this sample, in rad/s. Zero means "use the configured
+    // default". A caller supplies it to reflect a flight-state tier -- parked,
+    // climbing, airborne -- without this package learning what a flight state
+    // is. The animation only has to say which of those the vehicle is in.
+    double rotor_speed_rad_s{0.0};
     ros::Time stamp;
 };
 
