@@ -51,6 +51,22 @@ target_link_libraries(mecanum_ugv_visualizer
   ${catkin_LIBRARIES}
 )
 
+# The description publisher is a node, not a library: it turns a robot roster
+# plus a per-kind visual URDF into parameters a viewer can load once by name.
+add_executable(xgc2_robot_description_publisher_node
+  src/robot_description_publisher_node.cpp
+)
+add_dependencies(xgc2_robot_description_publisher_node
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(xgc2_robot_description_publisher_node
+  ${catkin_LIBRARIES}
+)
+
+install(TARGETS xgc2_robot_description_publisher_node
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 install(TARGETS fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
