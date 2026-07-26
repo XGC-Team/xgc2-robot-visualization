@@ -8,13 +8,16 @@
 // physical fleet all end up with the same parameters, so the viewer layout that
 // consumes them does not change between simulation and a real flight.
 //
-// It sets the parameters and stops. There is nothing to poll: a ROS parameter
-// is retained by the master for as long as the master lives, and the roster is
-// frozen for the run.
+// Geometry is published to /<robot>/visual_robot_description — never
+// /robot_description. Gazebo spawn overwrites the latter with control URDFs
+// (Scout especially), which produces black meshes and broken joint trees in
+// Lichtblick. Parameters are re-asserted periodically so late spawners cannot
+// win a race against the viewer path.
 
 #include <map>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <fstream>
@@ -22,8 +25,6 @@
 
 namespace {
 
-// Robot names arrive as a comma separated list, matching how the rest of the
-// XGC2 process catalog passes fleet composition into a ROS node.
 std::vector<std::string> splitNames(const std::string& value) {
     std::vector<std::string> names;
     std::stringstream stream(value);
@@ -59,10 +60,16 @@ bool readFile(const std::string& path, std::string* contents, std::string* error
     return true;
 }
 
-// A namespace is the robot's own name. Keeping the two identical is what lets a
-// viewer derive the parameter name and the transform prefix from one fact.
+// Dedicated viewer parameter. Do not use /robot_description — simulators own it.
 std::string descriptionParameter(const std::string& robot_name) {
-    return "/" + robot_name + "/robot_description";
+    return "/" + robot_name + "/visual_robot_description";
+}
+
+void publishAll(ros::NodeHandle& node,
+                const std::vector<std::pair<std::string, std::string> >& published) {
+    for (std::size_t index = 0; index < published.size(); ++index) {
+        node.setParam(published[index].first, published[index].second);
+    }
 }
 
 }  // namespace
@@ -72,9 +79,6 @@ int main(int argc, char** argv) {
     ros::NodeHandle node;
     ros::NodeHandle private_node("~");
 
-    // One description file per robot kind, and one robot roster per kind. A kind
-    // with no robots contributes nothing, so an Experiment that flies only
-    // multirotors does not need a Scout description on disk.
     std::map<std::string, std::string> roster_parameter;
     roster_parameter["fs150"] = "fs150_models";
     roster_parameter["scout"] = "scout_models";
@@ -85,7 +89,9 @@ int main(int argc, char** argv) {
     description_parameter["scout"] = "scout_description_path";
     description_parameter["mecanum"] = "mecanum_description_path";
 
-    bool published_any = false;
+    // param name -> URDF text
+    std::vector<std::pair<std::string, std::string> > published;
+
     for (std::map<std::string, std::string>::const_iterator it = roster_parameter.begin();
          it != roster_parameter.end(); ++it) {
         const std::string& kind = it->first;
@@ -114,29 +120,35 @@ int main(int argc, char** argv) {
         }
 
         for (std::size_t index = 0; index < names.size(); ++index) {
-            // Fail closed on a name that cannot become a legal parameter path:
-            // a viewer would silently render nothing for that robot.
             if (names[index].find('/') != std::string::npos) {
                 ROS_FATAL_STREAM("robot name must not contain a slash: " << names[index]);
                 return 1;
             }
-            node.setParam(descriptionParameter(names[index]), description);
-            published_any = true;
+            published.push_back(std::make_pair(descriptionParameter(names[index]), description));
         }
-        ROS_INFO_STREAM("published " << kind << " robot description to " << names.size()
-                                     << " robot(s) from " << path << " (" << description.size()
-                                     << " bytes)");
+        ROS_INFO_STREAM("prepared " << kind << " visual robot description for " << names.size()
+                                    << " robot(s) from " << path << " (" << description.size()
+                                    << " bytes) on */visual_robot_description");
     }
 
-    if (!published_any) {
+    if (published.empty()) {
         ROS_FATAL("no robots were listed; refusing to start a description publisher with nothing"
                   " to publish");
         return 1;
     }
 
-    // Readiness for this node is the presence of the parameters it just set, so
-    // it stays alive only to keep its ROS graph registration -- a supervisor
-    // that sees the node vanish should treat the descriptions as unowned.
-    ros::spin();
+    publishAll(node, published);
+    ROS_INFO_STREAM("published " << published.size()
+                                 << " visual_robot_description parameter(s); re-asserting at 0.5 Hz");
+
+    // Re-assert so a late Gazebo/xacro load cannot leave the viewer on a stale
+    // control URDF if something still writes the wrong parameter name, and so
+    // parameter-subscribe clients see a fresh update after spawn storms.
+    ros::Rate rate(0.5);
+    while (ros::ok()) {
+        publishAll(node, published);
+        ros::spinOnce();
+        rate.sleep();
+    }
     return 0;
 }
