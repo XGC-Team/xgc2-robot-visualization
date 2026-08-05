@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 PACKAGE="ros-${ROS_DISTRO}-xgc2-robot-visualization"
 ROS_PACKAGE="xgc2_robot_visualization"
+DESCRIPTION_PUBLISHER="xgc2_robot_description_publisher_node"
 
 product_version() {
   awk -F': *' '/^version:[[:space:]]*/ {print $2; exit}' "${REPO_ROOT}/.xgc2/product.yml"
@@ -62,11 +63,21 @@ copy_path() {
   fi
 }
 
+copy_required_path() {
+  local src="$1"
+  if [[ ! -e "${src}" ]]; then
+    echo "required package artifact is missing: ${src}" >&2
+    exit 1
+  fi
+  copy_path "${src}"
+}
+
 copy_path "${PREFIX_ROOT}/share/${ROS_PACKAGE}"
 copy_path "${PREFIX_ROOT}/include/${ROS_PACKAGE}"
 copy_path "${PREFIX_ROOT}/lib/libfs150_uav_visualizer.so"
 copy_path "${PREFIX_ROOT}/lib/libscout_ugv_visualizer.so"
 copy_path "${PREFIX_ROOT}/lib/libmecanum_ugv_visualizer.so"
+copy_required_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${DESCRIPTION_PUBLISHER}"
 
 cat > "${PKG_ROOT}/DEBIAN/control" <<EOF
 Package: ${PACKAGE}
@@ -84,6 +95,7 @@ printf '%s package\n' "${PACKAGE}" > "${PKG_ROOT}/usr/share/doc/${PACKAGE}/READM
 find "${PKG_ROOT}" -type d -exec chmod 0755 {} +
 find "${PKG_ROOT}" -type f -exec chmod 0644 {} +
 chmod 0755 "${PKG_ROOT}/DEBIAN"
+chmod 0755 "${PKG_ROOT}${PREFIX}/lib/${ROS_PACKAGE}/${DESCRIPTION_PUBLISHER}"
 
 fakeroot dpkg-deb --build "${PKG_ROOT}" "${OUTPUT_DIR}/${PACKAGE}_${VERSION}_${ARCH}.deb" >/dev/null
 find "${OUTPUT_DIR}" -maxdepth 1 -type f -name '*.deb' -print | sort
