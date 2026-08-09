@@ -142,8 +142,8 @@ bool readRobotVisualizationRoster(const std::string& raw,
         }
         prepared.push_back(std::move(robot));
     }
-    if (prepared.empty() || prepared.size() > 256) {
-        *error = "frozen Robot visualization roster must contain between 1 and 256 Robots";
+    if (prepared.size() > 256) {
+        *error = "frozen Robot visualization roster must contain at most 256 Robots";
         return false;
     }
     std::sort(prepared.begin(), prepared.end(),

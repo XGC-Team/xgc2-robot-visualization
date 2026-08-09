@@ -39,6 +39,15 @@ TEST(RobotDescriptionRuntime, AcceptsAndSortsMixedFrozenRoster) {
     EXPECT_FALSE(robots[1].robot_state_publisher);
 }
 
+TEST(RobotDescriptionRuntime, AcceptsEmptyDescriptionCapabilityRoster) {
+    std::vector<RobotDescription> robots = {
+        RobotDescription{"stale", "/stale", "pkg", "stale.urdf", false,
+                         "joint_states"}};
+    std::string error;
+    ASSERT_TRUE(readRobotVisualizationRoster("[]", &robots, &error)) << error;
+    EXPECT_TRUE(robots.empty());
+}
+
 TEST(RobotDescriptionRuntime, RejectsNonCanonicalOrIncompleteRoster) {
     struct Case {
         const char* name;
@@ -47,7 +56,6 @@ TEST(RobotDescriptionRuntime, RejectsNonCanonicalOrIncompleteRoster) {
     };
     const std::vector<Case> cases = {
         {"not array", "{}", "JSON array"},
-        {"empty", "[]", "between 1 and 256"},
         {"unknown field", std::string("[") +
              std::string(kB2).substr(0, std::string(kB2).size() - 1) +
              R"json(,"kind":"unitree_b2"}])json", "unknown field kind"},
@@ -86,7 +94,7 @@ TEST(RobotDescriptionRuntime, RejectsRosterAboveProductBound) {
     std::vector<RobotDescription> robots;
     std::string error;
     EXPECT_FALSE(readRobotVisualizationRoster(raw.str(), &robots, &error));
-    EXPECT_NE(error.find("between 1 and 256"), std::string::npos) << error;
+    EXPECT_NE(error.find("at most 256"), std::string::npos) << error;
 }
 
 }  // namespace
