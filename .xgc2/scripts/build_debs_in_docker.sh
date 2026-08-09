@@ -67,9 +67,12 @@ docker run --rm \
       fakeroot \
       file \
       git \
+      procps \
       rsync \
       ros-noetic-geometry-msgs \
+      ros-noetic-roslib \
       ros-noetic-roscpp \
+      ros-noetic-robot-state-publisher \
       ros-noetic-rospack \
       ros-noetic-std-msgs \
       ros-noetic-visualization-msgs
@@ -80,9 +83,12 @@ docker run --rm \
 
     cd /workspace/work
     source /opt/ros/noetic/setup.bash
+    catkin_make -DCATKIN_ENABLE_TESTING=ON
+    catkin_make run_tests_xgc2_robot_visualization
+    catkin_test_results --verbose
     DESTDIR=/workspace/work/install-root catkin_make install \
       -DCMAKE_INSTALL_PREFIX=/opt/ros/noetic \
-      -DCATKIN_ENABLE_TESTING=OFF
+      -DCATKIN_ENABLE_TESTING=ON
 
     /workspace/repo/.xgc2/scripts/package_debs.sh \
       --install-root /workspace/work/install-root \

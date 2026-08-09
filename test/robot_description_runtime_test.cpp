@@ -1,0 +1,98 @@
+#include "robot_description_runtime.hpp"
+
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include <gtest/gtest.h>
+
+namespace xgc2_robot_visualization {
+namespace {
+
+const char* kB2 = R"json({
+  "name":"b21",
+  "namespace":"/b21",
+  "descriptionPackage":"b2arx_description",
+  "descriptionFile":"urdf/b2arx_visual.urdf",
+  "robotStatePublisher":true,
+  "jointStateTopic":"joint_states"
+})json";
+
+TEST(RobotDescriptionRuntime, AcceptsAndSortsMixedFrozenRoster) {
+    const std::string raw = std::string("[") + R"json({
+      "name":"uav1",
+      "namespace":"/uav1",
+      "descriptionPackage":"fs150_description",
+      "descriptionFile":"urdf/fs150_visual.urdf",
+      "robotStatePublisher":false,
+      "jointStateTopic":"joint_states"
+    },)json" + kB2 + "]";
+    std::vector<RobotDescription> robots;
+    std::string error;
+    ASSERT_TRUE(readRobotVisualizationRoster(raw, &robots, &error)) << error;
+    ASSERT_EQ(robots.size(), 2u);
+    EXPECT_EQ(robots[0].name, "b21");
+    EXPECT_EQ(robots[0].ros_namespace, "/b21");
+    EXPECT_EQ(robots[0].description_package, "b2arx_description");
+    EXPECT_TRUE(robots[0].robot_state_publisher);
+    EXPECT_EQ(robots[1].name, "uav1");
+    EXPECT_FALSE(robots[1].robot_state_publisher);
+}
+
+TEST(RobotDescriptionRuntime, RejectsNonCanonicalOrIncompleteRoster) {
+    struct Case {
+        const char* name;
+        std::string raw;
+        const char* error;
+    };
+    const std::vector<Case> cases = {
+        {"not array", "{}", "JSON array"},
+        {"empty", "[]", "between 1 and 256"},
+        {"unknown field", std::string("[") +
+             std::string(kB2).substr(0, std::string(kB2).size() - 1) +
+             R"json(,"kind":"unitree_b2"}])json", "unknown field kind"},
+        {"namespace mismatch", R"json([{"name":"b21","namespace":"/dog","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states"}])json", "not canonical"},
+        {"absolute joint topic", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"/joint_states"}])json", "not canonical"},
+        {"host description path", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"/home/user/b2.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states"}])json", "not canonical"},
+        {"traversal description path", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"../b2.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states"}])json", "not canonical"},
+        {"missing field", R"json([{"name":"b21","namespace":"/b21"}])json", "exact contract fields"},
+        {"duplicate field", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"robotStatePublisher":true,"jointStateTopic":"joint_states"}])json", "repeats field robotStatePublisher"},
+        {"duplicate", std::string("[") + kB2 + "," + kB2 + "]", "repeats model b21"},
+    };
+    for (const auto& test : cases) {
+        SCOPED_TRACE(test.name);
+        std::vector<RobotDescription> robots = {RobotDescription{"keep", "/keep", "pkg", "a.urdf", false, "joint_states"}};
+        std::string error;
+        EXPECT_FALSE(readRobotVisualizationRoster(test.raw, &robots, &error));
+        EXPECT_NE(error.find(test.error), std::string::npos) << error;
+        ASSERT_EQ(robots.size(), 1u);
+        EXPECT_EQ(robots[0].name, "keep");
+    }
+}
+
+TEST(RobotDescriptionRuntime, RejectsRosterAboveProductBound) {
+    std::ostringstream raw;
+    raw << '[';
+    for (int index = 0; index < 257; ++index) {
+        if (index != 0) {
+            raw << ',';
+        }
+        raw << "{\"name\":\"r" << index << "\",\"namespace\":\"/r" << index
+            << "\",\"descriptionPackage\":\"robot_description\","
+               "\"descriptionFile\":\"urdf/robot.urdf\","
+               "\"robotStatePublisher\":false,\"jointStateTopic\":\"joint_states\"}";
+    }
+    raw << ']';
+    std::vector<RobotDescription> robots;
+    std::string error;
+    EXPECT_FALSE(readRobotVisualizationRoster(raw.str(), &robots, &error));
+    EXPECT_NE(error.find("between 1 and 256"), std::string::npos) << error;
+}
+
+}  // namespace
+}  // namespace xgc2_robot_visualization
+
+int main(int argc, char** argv) {
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

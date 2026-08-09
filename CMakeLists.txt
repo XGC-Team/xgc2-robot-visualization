@@ -5,6 +5,7 @@ add_compile_options(-std=c++14)
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
+  roslib
   roscpp
   std_msgs
   visualization_msgs
@@ -13,7 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer
-  CATKIN_DEPENDS geometry_msgs roscpp std_msgs visualization_msgs
+  CATKIN_DEPENDS geometry_msgs roslib roscpp std_msgs visualization_msgs
 )
 
 include_directories(
@@ -51,6 +52,22 @@ target_link_libraries(mecanum_ugv_visualizer
   ${catkin_LIBRARIES}
 )
 
+# Strict parser for the immutable, kind-neutral Robot visualization roster.
+# Keep it outside the process main so malformed/partial fleet admission is
+# covered by ordinary unit tests and cannot regress behind a successful build.
+add_library(robot_description_runtime STATIC
+  src/robot_description_runtime.cpp
+)
+target_include_directories(robot_description_runtime PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+add_dependencies(robot_description_runtime
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(robot_description_runtime
+  ${catkin_LIBRARIES}
+)
+
 # The description publisher is a node, not a library: it turns a robot roster
 # plus a per-kind visual URDF into parameters a viewer can load once by name.
 add_executable(xgc2_robot_description_publisher_node
@@ -60,6 +77,7 @@ add_dependencies(xgc2_robot_description_publisher_node
   ${catkin_EXPORTED_TARGETS}
 )
 target_link_libraries(xgc2_robot_description_publisher_node
+  robot_description_runtime
   ${catkin_LIBRARIES}
 )
 
@@ -86,5 +104,9 @@ if(CATKIN_ENABLE_TESTING)
   if(TARGET robot_label_anchor_test)
     target_link_libraries(robot_label_anchor_test
       fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer ${catkin_LIBRARIES})
+  endif()
+  catkin_add_gtest(robot_description_runtime_test test/robot_description_runtime_test.cpp)
+  if(TARGET robot_description_runtime_test)
+    target_link_libraries(robot_description_runtime_test robot_description_runtime ${catkin_LIBRARIES})
   endif()
 endif()

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>xgc2_robot_visualization</name>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <description>Reusable RViz marker visualizers for XGC2 robot assets.</description>
 
   <maintainer email="lxk@xiaokang.local">lxk</maintainer>
@@ -10,6 +10,7 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>geometry_msgs</depend>
+  <depend>roslib</depend>
   <depend>roscpp</depend>
   <depend>std_msgs</depend>
   <depend>visualization_msgs</depend>
@@ -17,6 +18,7 @@
   <exec_depend>fs150_description</exec_depend>
   <exec_depend>mecanum_description</exec_depend>
   <exec_depend>scout_description</exec_depend>
+  <exec_depend>robot_state_publisher</exec_depend>
 
   <test_depend>gtest</test_depend>
 
