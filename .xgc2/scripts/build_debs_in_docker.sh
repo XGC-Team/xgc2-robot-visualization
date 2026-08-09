@@ -8,6 +8,8 @@ DOCKER_IMAGE="${DOCKER_IMAGE:-ros:noetic-ros-base-focal}"
 WORK_DIR="${WORK_DIR:-${REPO_ROOT}/.work/docker}"
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_ROOT}/debs}"
 INSTALL_CHECK="${INSTALL_CHECK:-true}"
+XGC2_DEPENDENCY_SET_DIGEST="${XGC2_DEPENDENCY_SET_DIGEST:-}"
+EMPTY_DEPENDENCY_SET_DIGEST="4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -36,9 +38,21 @@ done
 
 mkdir -p "${WORK_DIR}" "${OUTPUT_DIR}"
 
+if [[ -n "${XGC2_DEPENDENCY_SET_DIGEST}" &&
+      ! "${XGC2_DEPENDENCY_SET_DIGEST}" =~ ^[0-9a-f]{64}$ ]]; then
+  echo "XGC2_DEPENDENCY_SET_DIGEST must be empty or 64 lowercase hex characters" >&2
+  exit 1
+fi
+if [[ -n "${XGC2_APT_OVERLAY_URL:-}" && -z "${XGC2_DEPENDENCY_SET_DIGEST}" ]]; then
+  echo "XGC2_APT_OVERLAY_URL requires XGC2_DEPENDENCY_SET_DIGEST" >&2
+  exit 1
+fi
+
 docker pull "${DOCKER_IMAGE}"
 docker run --rm \
   -e XGC2_APT_OVERLAY_URL="${XGC2_APT_OVERLAY_URL:-}" \
+  -e XGC2_DEPENDENCY_SET_DIGEST="${XGC2_DEPENDENCY_SET_DIGEST}" \
+  -e EMPTY_DEPENDENCY_SET_DIGEST="${EMPTY_DEPENDENCY_SET_DIGEST}" \
   -e DEBIAN_FRONTEND=noninteractive \
   -e INSTALL_CHECK="${INSTALL_CHECK}" \
   -v "${REPO_ROOT}:/workspace/repo:ro" \
@@ -54,7 +68,8 @@ docker run --rm \
     echo "deb [trusted=yes arch=$(dpkg --print-architecture)] https://xgc2.apt.xiaokang.ink focal main" \
       > /etc/apt/sources.list.d/xgc2.list
 
-      if [[ -n "${XGC2_APT_OVERLAY_URL:-}" ]]; then
+      if [[ -n "${XGC2_APT_OVERLAY_URL:-}" &&
+            "${XGC2_DEPENDENCY_SET_DIGEST}" != "${EMPTY_DEPENDENCY_SET_DIGEST}" ]]; then
         sed "s#${XGC2_APT_BASE_URL:-https://xgc2.apt.xiaokang.ink}#${XGC2_APT_OVERLAY_URL%/}#g" \
           /etc/apt/sources.list.d/xgc2.list \
           > /etc/apt/sources.list.d/00-xgc2-release-train.list
