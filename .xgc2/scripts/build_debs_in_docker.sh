@@ -81,6 +81,8 @@ docker run --rm \
       --output-dir /workspace/out
 
     if [[ "${INSTALL_CHECK}" == "true" ]]; then
+      # Resolve the declared, already-published XGC2 description packages.
+      apt-get update
       apt-get install -y /workspace/out/ros-noetic-xgc2-robot-visualization_*.deb
       /workspace/repo/.xgc2/scripts/check_installed_packages.sh
     fi
