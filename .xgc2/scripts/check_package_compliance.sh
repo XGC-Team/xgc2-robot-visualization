@@ -24,8 +24,13 @@ grep -q '^Depends:.*xgc2-mecanum-description' .xgc2/scripts/package_debs.sh
 grep -q '^Depends:.*ros-${ROS_DISTRO}-roslib.*ros-${ROS_DISTRO}-robot-state-publisher' .xgc2/scripts/package_debs.sh
 grep -q 'catkin_make run_tests_xgc2_robot_visualization' .xgc2/scripts/build_debs_in_docker.sh
 grep -q 'catkin_test_results --verbose' .xgc2/scripts/build_debs_in_docker.sh
+grep -q 'xgc2-build-focal-ros-noetic:1.0.0' .xgc2/scripts/build_debs_in_docker.sh
 grep -q 'XGC2_APT_OVERLAY_URL requires XGC2_DEPENDENCY_SET_DIGEST' .xgc2/scripts/build_debs_in_docker.sh
-grep -q 'XGC2_DEPENDENCY_SET_DIGEST.*!=.*EMPTY_DEPENDENCY_SET_DIGEST' .xgc2/scripts/build_debs_in_docker.sh
+if rg -n 'apt-get (update|install)' .xgc2/scripts/build_debs_in_docker.sh | \
+  rg -v '/workspace/out/'; then
+  echo "build dependencies must come from the XGC2 image" >&2
+  exit 1
+fi
 grep -q 'robot_description_runtime_test' CMakeLists.txt
 grep -q 'XGC2_ROBOT_VISUALIZATION_ROSTER=' .xgc2/scripts/check_installed_packages.sh
 grep -q 'rosnode ping -c 1 /gate1/robot_state_publisher' .xgc2/scripts/check_installed_packages.sh
