@@ -214,8 +214,7 @@ std::string displayName(const UgvVisualState& state) {
 } // namespace
 
 ScoutUgvVisualizer::ScoutUgvVisualizer(const Config& config) : config_(config) {
-    config_.path_publish_rate = std::max(1.0, config_.path_publish_rate);
-    config_.path_limit = std::max(2, config_.path_limit);
+    applyPathHistoryConfig(&config_.path_publish_rate, &config_.path_history_duration_sec, &config_.path_limit);
     config_.mesh_scale = std::max(0.001, config_.mesh_scale);
     config_.visual_wheel_radius = std::max(0.001, config_.visual_wheel_radius);
     config_.visual_track_width = std::max(0.001, config_.visual_track_width);
@@ -295,15 +294,8 @@ void ScoutUgvVisualizer::updateWheelPhases(ModelVisualState* visual, const UgvVi
 }
 
 void ScoutUgvVisualizer::updatePath(ModelVisualState* visual, const UgvVisualState& state) const {
-    if (!visual->last_path_stamp.isZero() &&
-        (state.stamp - visual->last_path_stamp).toSec() < 1.0 / config_.path_publish_rate) {
-        return;
-    }
-    if (static_cast<int>(visual->path.size()) >= config_.path_limit) {
-        visual->path.pop_front();
-    }
-    visual->path.push_back(state.pose.position);
-    visual->last_path_stamp = state.stamp;
+    pushPathHistory(&visual->path, state.stamp, state.pose.position, config_.path_publish_rate,
+                    config_.path_history_duration_sec, config_.path_limit);
 }
 
 void ScoutUgvVisualizer::addBodyMarkers(const UgvVisualState& state, visualization_msgs::MarkerArray* markers,
@@ -356,7 +348,7 @@ void ScoutUgvVisualizer::addPathMarker(const UgvVisualState& state, const ModelV
     marker.id = 10;
     marker.type = visualization_msgs::Marker::LINE_STRIP;
     marker.action = visualization_msgs::Marker::ADD;
-    marker.points.assign(visual.path.begin(), visual.path.end());
+    assignPathHistoryPoints(visual.path, &marker.points);
     marker.scale.x = 0.018;
     marker.color.r = 1.0;
     marker.color.g = 0.05;

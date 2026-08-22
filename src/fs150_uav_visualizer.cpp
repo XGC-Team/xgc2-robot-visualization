@@ -161,8 +161,7 @@ std::string displayName(const UavVisualState& state) {
 } // namespace
 
 Fs150UavVisualizer::Fs150UavVisualizer(const Config& config) : config_(config) {
-    config_.path_publish_rate = std::max(1.0, config_.path_publish_rate);
-    config_.path_limit = std::max(2, config_.path_limit);
+    applyPathHistoryConfig(&config_.path_publish_rate, &config_.path_history_duration_sec, &config_.path_limit);
     config_.mesh_scale = std::max(0.001, config_.mesh_scale);
     config_.rotor_speed_rad_s = std::max(0.0, config_.rotor_speed_rad_s);
 }
@@ -204,15 +203,8 @@ void Fs150UavVisualizer::updateRotorPhases(ModelVisualState* visual, const UavVi
 }
 
 void Fs150UavVisualizer::updatePath(ModelVisualState* visual, const UavVisualState& state) const {
-    if (!visual->last_path_stamp.isZero() &&
-        (state.stamp - visual->last_path_stamp).toSec() < 1.0 / config_.path_publish_rate) {
-        return;
-    }
-    if (static_cast<int>(visual->path.size()) >= config_.path_limit) {
-        visual->path.pop_front();
-    }
-    visual->path.push_back(state.pose.position);
-    visual->last_path_stamp = state.stamp;
+    pushPathHistory(&visual->path, state.stamp, state.pose.position, config_.path_publish_rate,
+                    config_.path_history_duration_sec, config_.path_limit);
 }
 
 void Fs150UavVisualizer::addBodyMarker(const UavVisualState& state, visualization_msgs::MarkerArray* markers) const {
@@ -262,7 +254,7 @@ void Fs150UavVisualizer::addPathMarker(const UavVisualState& state, const ModelV
     marker.id = 10;
     marker.type = visualization_msgs::Marker::LINE_STRIP;
     marker.action = visualization_msgs::Marker::ADD;
-    marker.points.assign(visual.path.begin(), visual.path.end());
+    assignPathHistoryPoints(visual.path, &marker.points);
     marker.scale.x = 0.018;
     marker.color.r = 0.0;
     marker.color.g = 0.55;

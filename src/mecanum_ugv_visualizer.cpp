@@ -227,8 +227,7 @@ std::string displayName(const MecanumVisualState& state) {
 } // namespace
 
 MecanumUgvVisualizer::MecanumUgvVisualizer(const Config& config) : config_(config) {
-    config_.path_publish_rate = std::max(1.0, config_.path_publish_rate);
-    config_.path_limit = std::max(2, config_.path_limit);
+    applyPathHistoryConfig(&config_.path_publish_rate, &config_.path_history_duration_sec, &config_.path_limit);
     config_.mesh_scale = std::max(0.001, config_.mesh_scale);
     config_.visual_wheel_radius = std::max(0.001, config_.visual_wheel_radius);
     config_.visual_wheelbase_plus_track = std::max(0.001, config_.visual_wheelbase_plus_track);
@@ -316,15 +315,8 @@ void MecanumUgvVisualizer::updatePath(ModelVisualState* visual, const MecanumVis
     if (visual == nullptr) {
         return;
     }
-    if (!visual->last_path_stamp.isZero() &&
-        (state.stamp - visual->last_path_stamp).toSec() < 1.0 / config_.path_publish_rate) {
-        return;
-    }
-    if (static_cast<int>(visual->path.size()) >= config_.path_limit) {
-        visual->path.pop_front();
-    }
-    visual->path.push_back(state.pose.position);
-    visual->last_path_stamp = state.stamp;
+    pushPathHistory(&visual->path, state.stamp, state.pose.position, config_.path_publish_rate,
+                    config_.path_history_duration_sec, config_.path_limit);
 }
 
 void MecanumUgvVisualizer::addBodyMarkers(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers,
@@ -377,7 +369,7 @@ void MecanumUgvVisualizer::addPathMarker(const MecanumVisualState& state, const 
     marker.pose.orientation.w = 1.0;
     marker.scale.x = 0.025;
     marker.color = makeColor(0.95, 0.65, 0.1, 0.95);
-    marker.points.assign(visual.path.begin(), visual.path.end());
+    assignPathHistoryPoints(visual.path, &marker.points);
     markers->markers.push_back(marker);
 }
 

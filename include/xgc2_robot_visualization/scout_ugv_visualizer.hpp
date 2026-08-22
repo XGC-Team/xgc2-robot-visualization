@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "xgc2_robot_visualization/path_history.hpp"
+
 #include <geometry_msgs/Point.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -27,8 +29,9 @@ class ScoutUgvVisualizer {
     struct Config {
         std::string frame_id{"world"};
         double mesh_scale{1.0};
-        double path_publish_rate{10.0};
-        int path_limit{3000};
+        double path_publish_rate{kDefaultPathPublishRateHz};
+        double path_history_duration_sec{kDefaultPathHistoryDurationSec};
+        int path_limit{0};
         double visual_wheel_radius{0.08};
         double visual_track_width{0.416};
         double wheel_motion_deadband{0.02};
@@ -43,8 +46,7 @@ class ScoutUgvVisualizer {
   private:
     struct ModelVisualState {
         ros::Time last_update_stamp;
-        ros::Time last_path_stamp;
-        std::deque<geometry_msgs::Point> path;
+        std::deque<PathSample> path;
         std::vector<double> wheel_phases;
         geometry_msgs::Pose previous_pose;
         bool has_previous_pose{false};
