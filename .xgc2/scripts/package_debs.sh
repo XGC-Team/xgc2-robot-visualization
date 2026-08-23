@@ -77,6 +77,8 @@ copy_path "${PREFIX_ROOT}/include/${ROS_PACKAGE}"
 copy_path "${PREFIX_ROOT}/lib/libfs150_uav_visualizer.so"
 copy_path "${PREFIX_ROOT}/lib/libscout_ugv_visualizer.so"
 copy_path "${PREFIX_ROOT}/lib/libmecanum_ugv_visualizer.so"
+copy_required_path "${PREFIX_ROOT}/lib/librobot_description_runtime.so"
+copy_required_path "${PREFIX_ROOT}/lib/librobot_path_runtime.so"
 copy_required_path "${PREFIX_ROOT}/lib/${ROS_PACKAGE}/${DESCRIPTION_PUBLISHER}"
 
 cat > "${PKG_ROOT}/DEBIAN/control" <<EOF
@@ -86,7 +88,7 @@ Section: misc
 Priority: optional
 Architecture: ${ARCH}
 Maintainer: XGC2 <apt@example.com>
-Depends: ros-${ROS_DISTRO}-geometry-msgs, ros-${ROS_DISTRO}-roslib, ros-${ROS_DISTRO}-roscpp, ros-${ROS_DISTRO}-robot-state-publisher, ros-${ROS_DISTRO}-std-msgs, ros-${ROS_DISTRO}-visualization-msgs, ros-${ROS_DISTRO}-xgc2-mecanum-description (>= 0.1.0-1)
+Depends: ros-${ROS_DISTRO}-geometry-msgs, ros-${ROS_DISTRO}-nav-msgs, ros-${ROS_DISTRO}-roslib, ros-${ROS_DISTRO}-roscpp, ros-${ROS_DISTRO}-robot-state-publisher, ros-${ROS_DISTRO}-std-msgs, ros-${ROS_DISTRO}-visualization-msgs, ros-${ROS_DISTRO}-xgc2-mecanum-description (>= 0.1.0-1)
 Recommends: ros-${ROS_DISTRO}-xgc2-fs150-description (>= 0.1.0-3), ros-${ROS_DISTRO}-xgc2-scout-description (>= 0.4.10-8)
 Description: XGC2 reusable robot RViz marker visualization libraries
 EOF

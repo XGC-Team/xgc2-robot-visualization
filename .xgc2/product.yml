@@ -16,6 +16,7 @@ apt:
   - ros-noetic-xgc2-robot-visualization
   depends:
   - ros-noetic-geometry-msgs
+  - ros-noetic-nav-msgs
   - ros-noetic-roslib
   - ros-noetic-roscpp
   - ros-noetic-robot-state-publisher
@@ -41,6 +42,8 @@ ownership:
   - /opt/ros/noetic/lib/libfs150_uav_visualizer.so
   - /opt/ros/noetic/lib/libscout_ugv_visualizer.so
   - /opt/ros/noetic/lib/libmecanum_ugv_visualizer.so
+  - /opt/ros/noetic/lib/librobot_description_runtime.so
+  - /opt/ros/noetic/lib/librobot_path_runtime.so
   - /opt/ros/noetic/lib/xgc2_robot_visualization/xgc2_robot_description_publisher_node
 release:
   requires:

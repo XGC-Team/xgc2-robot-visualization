@@ -10,9 +10,13 @@ test "$(rospack find xgc2_robot_visualization)" = "/opt/ros/${ROS_DISTRO}/share/
 test -f "/opt/ros/${ROS_DISTRO}/include/xgc2_robot_visualization/fs150_uav_visualizer.hpp"
 test -f "/opt/ros/${ROS_DISTRO}/include/xgc2_robot_visualization/scout_ugv_visualizer.hpp"
 test -f "/opt/ros/${ROS_DISTRO}/include/xgc2_robot_visualization/mecanum_ugv_visualizer.hpp"
+test -f "/opt/ros/${ROS_DISTRO}/include/xgc2_robot_visualization/path_history.hpp"
+test -f "/opt/ros/${ROS_DISTRO}/include/xgc2_robot_visualization/path_runtime.hpp"
 test -f "/opt/ros/${ROS_DISTRO}/lib/libfs150_uav_visualizer.so"
 test -f "/opt/ros/${ROS_DISTRO}/lib/libscout_ugv_visualizer.so"
 test -f "/opt/ros/${ROS_DISTRO}/lib/libmecanum_ugv_visualizer.so"
+test -f "/opt/ros/${ROS_DISTRO}/lib/librobot_description_runtime.so"
+test -f "/opt/ros/${ROS_DISTRO}/lib/librobot_path_runtime.so"
 test -x "${DESCRIPTION_PUBLISHER}"
 
 description_publisher_ldd="$(ldd "${DESCRIPTION_PUBLISHER}")"
@@ -56,7 +60,7 @@ roscore >/tmp/xgc2-robot-visualization-roscore.log 2>&1 &
 ROSCORE_PID=$!
 wait_for_gate "ROS master" rosparam list
 
-export XGC2_ROBOT_VISUALIZATION_ROSTER='[{"name":"gate1","namespace":"/gate1","descriptionPackage":"mecanum_description","descriptionFile":"urdf/mecanum_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states"}]'
+export XGC2_ROBOT_VISUALIZATION_ROSTER='[{"name":"gate1","namespace":"/gate1","descriptionPackage":"mecanum_description","descriptionFile":"urdf/mecanum_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"path"}]'
 rosrun xgc2_robot_visualization xgc2_robot_description_publisher_node \
   __name:=xgc2_robot_description_publisher \
   >/tmp/xgc2-robot-visualization-publisher.log 2>&1 &

@@ -13,14 +13,20 @@ grep -q '<exec_depend>fs150_description</exec_depend>' package.xml
 grep -q '<exec_depend>mecanum_description</exec_depend>' package.xml
 grep -q '<exec_depend>scout_description</exec_depend>' package.xml
 grep -q '<depend>roslib</depend>' package.xml
+grep -q '<depend>nav_msgs</depend>' package.xml
 grep -q '<exec_depend>robot_state_publisher</exec_depend>' package.xml
 grep -q 'libmecanum_ugv_visualizer.so' .xgc2/scripts/package_debs.sh
+grep -q 'copy_required_path.*librobot_description_runtime.so' .xgc2/scripts/package_debs.sh
+grep -q 'copy_required_path.*librobot_path_runtime.so' .xgc2/scripts/package_debs.sh
 grep -q '^DESCRIPTION_PUBLISHER="xgc2_robot_description_publisher_node"$' .xgc2/scripts/package_debs.sh
 grep -q 'copy_required_path.*DESCRIPTION_PUBLISHER' .xgc2/scripts/package_debs.sh
 grep -q 'test -x.*DESCRIPTION_PUBLISHER' .xgc2/scripts/check_installed_packages.sh
 grep -q "grep -F 'not found'" .xgc2/scripts/check_installed_packages.sh
 grep -q '/opt/ros/noetic/lib/xgc2_robot_visualization/xgc2_robot_description_publisher_node' .xgc2/product.yml
+grep -q '/opt/ros/noetic/lib/librobot_description_runtime.so' .xgc2/product.yml
+grep -q '/opt/ros/noetic/lib/librobot_path_runtime.so' .xgc2/product.yml
 grep -q '^Depends:.*xgc2-mecanum-description' .xgc2/scripts/package_debs.sh
+grep -q '^Depends:.*ros-${ROS_DISTRO}-nav-msgs' .xgc2/scripts/package_debs.sh
 grep -q '^Depends:.*ros-${ROS_DISTRO}-roslib.*ros-${ROS_DISTRO}-robot-state-publisher' .xgc2/scripts/package_debs.sh
 grep -q 'catkin_make run_tests_xgc2_robot_visualization' .xgc2/scripts/build_debs_in_docker.sh
 grep -q 'catkin_test_results --verbose' .xgc2/scripts/build_debs_in_docker.sh
