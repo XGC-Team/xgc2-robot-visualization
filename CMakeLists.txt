@@ -5,6 +5,7 @@ add_compile_options(-std=c++14)
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
+  nav_msgs
   roslib
   roscpp
   std_msgs
@@ -13,8 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer
-  CATKIN_DEPENDS geometry_msgs roslib roscpp std_msgs visualization_msgs
+  LIBRARIES fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer robot_description_runtime robot_path_runtime
+  CATKIN_DEPENDS geometry_msgs nav_msgs roslib roscpp std_msgs visualization_msgs
 )
 
 include_directories(
@@ -55,16 +56,23 @@ target_link_libraries(mecanum_ugv_visualizer
 # Strict parser for the immutable, kind-neutral Robot visualization roster.
 # Keep it outside the process main so malformed/partial fleet admission is
 # covered by ordinary unit tests and cannot regress behind a successful build.
-add_library(robot_description_runtime STATIC
+add_library(robot_description_runtime
   src/robot_description_runtime.cpp
-)
-target_include_directories(robot_description_runtime PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 add_dependencies(robot_description_runtime
   ${catkin_EXPORTED_TARGETS}
 )
 target_link_libraries(robot_description_runtime
+  ${catkin_LIBRARIES}
+)
+
+add_library(robot_path_runtime
+  src/path_runtime.cpp
+)
+add_dependencies(robot_path_runtime
+  ${catkin_EXPORTED_TARGETS}
+)
+target_link_libraries(robot_path_runtime
   ${catkin_LIBRARIES}
 )
 
@@ -85,7 +93,7 @@ install(TARGETS xgc2_robot_description_publisher_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(TARGETS fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer
+install(TARGETS fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer robot_description_runtime robot_path_runtime
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -113,5 +121,9 @@ if(CATKIN_ENABLE_TESTING)
   if(TARGET path_history_test)
     target_link_libraries(path_history_test
       fs150_uav_visualizer scout_ugv_visualizer mecanum_ugv_visualizer ${catkin_LIBRARIES})
+  endif()
+  catkin_add_gtest(path_runtime_test test/path_runtime_test.cpp)
+  if(TARGET path_runtime_test)
+    target_link_libraries(path_runtime_test robot_path_runtime ${catkin_LIBRARIES})
   endif()
 endif()

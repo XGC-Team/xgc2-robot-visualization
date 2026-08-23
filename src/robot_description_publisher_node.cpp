@@ -24,7 +24,7 @@
 #include <ros/ros.h>
 #include <std_msgs/Empty.h>
 
-#include "robot_description_runtime.hpp"
+#include "xgc2_robot_visualization/robot_description_runtime.hpp"
 
 namespace {
 

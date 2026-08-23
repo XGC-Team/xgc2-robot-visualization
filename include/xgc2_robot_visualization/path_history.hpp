@@ -32,7 +32,7 @@ inline void applyPathHistoryConfig(double *sample_rate_hz, double *duration_sec,
     }
     *sample_rate_hz = std::max(1.0, *sample_rate_hz);
     *duration_sec = std::max(0.0, *duration_sec);
-    if (*duration_sec > 0.0) {
+    if (*max_points <= 0 && *duration_sec > 0.0) {
         *max_points = pathHistoryPointBudget(*duration_sec, *sample_rate_hz);
     }
     *max_points = std::max(2, *max_points);

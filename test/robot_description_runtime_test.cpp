@@ -1,4 +1,4 @@
-#include "robot_description_runtime.hpp"
+#include "xgc2_robot_visualization/robot_description_runtime.hpp"
 
 #include <sstream>
 #include <string>
@@ -15,7 +15,10 @@ const char* kB2 = R"json({
   "descriptionPackage":"b2arx_description",
   "descriptionFile":"urdf/b2arx_visual.urdf",
   "robotStatePublisher":true,
-  "jointStateTopic":"joint_states"
+  "jointStateTopic":"joint_states",
+  "sceneModel":"",
+  "odometryTopic":"odom",
+  "pathTopic":"path"
 })json";
 
 TEST(RobotDescriptionRuntime, AcceptsAndSortsMixedFrozenRoster) {
@@ -25,7 +28,10 @@ TEST(RobotDescriptionRuntime, AcceptsAndSortsMixedFrozenRoster) {
       "descriptionPackage":"fs150_description",
       "descriptionFile":"urdf/fs150_visual.urdf",
       "robotStatePublisher":false,
-      "jointStateTopic":"joint_states"
+      "jointStateTopic":"joint_states",
+      "sceneModel":"uav1",
+      "odometryTopic":"",
+      "pathTopic":"path"
     },)json" + kB2 + "]";
     std::vector<RobotDescription> robots;
     std::string error;
@@ -37,6 +43,8 @@ TEST(RobotDescriptionRuntime, AcceptsAndSortsMixedFrozenRoster) {
     EXPECT_TRUE(robots[0].robot_state_publisher);
     EXPECT_EQ(robots[1].name, "uav1");
     EXPECT_FALSE(robots[1].robot_state_publisher);
+    EXPECT_EQ(robots[1].scene_model, "uav1");
+    EXPECT_EQ(robots[1].path_topic, "path");
 }
 
 TEST(RobotDescriptionRuntime, AcceptsEmptyDescriptionCapabilityRoster) {
@@ -59,12 +67,15 @@ TEST(RobotDescriptionRuntime, RejectsNonCanonicalOrIncompleteRoster) {
         {"unknown field", std::string("[") +
              std::string(kB2).substr(0, std::string(kB2).size() - 1) +
              R"json(,"kind":"unitree_b2"}])json", "unknown field kind"},
-        {"namespace mismatch", R"json([{"name":"b21","namespace":"/dog","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states"}])json", "not canonical"},
-        {"absolute joint topic", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"/joint_states"}])json", "not canonical"},
-        {"host description path", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"/home/user/b2.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states"}])json", "not canonical"},
-        {"traversal description path", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"../b2.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states"}])json", "not canonical"},
+        {"namespace mismatch", R"json([{"name":"b21","namespace":"/dog","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"path"}])json", "not canonical"},
+        {"absolute joint topic", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"/joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"path"}])json", "not canonical"},
+        {"host description path", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"/home/user/b2.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"path"}])json", "not canonical"},
+        {"traversal description path", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"../b2.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"path"}])json", "not canonical"},
         {"missing field", R"json([{"name":"b21","namespace":"/b21"}])json", "exact contract fields"},
-        {"duplicate field", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"robotStatePublisher":true,"jointStateTopic":"joint_states"}])json", "repeats field robotStatePublisher"},
+        {"duplicate field", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"path"}])json", "repeats field robotStatePublisher"},
+        {"absolute odometry topic", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"","odometryTopic":"/odom","pathTopic":"path"}])json", "not canonical"},
+        {"absolute path topic", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"/path"}])json", "not canonical"},
+        {"scene without path", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"b21","odometryTopic":"odom","pathTopic":""}])json", "not canonical"},
         {"duplicate", std::string("[") + kB2 + "," + kB2 + "]", "repeats model b21"},
     };
     for (const auto& test : cases) {
@@ -88,13 +99,25 @@ TEST(RobotDescriptionRuntime, RejectsRosterAboveProductBound) {
         raw << "{\"name\":\"r" << index << "\",\"namespace\":\"/r" << index
             << "\",\"descriptionPackage\":\"robot_description\","
                "\"descriptionFile\":\"urdf/robot.urdf\","
-               "\"robotStatePublisher\":false,\"jointStateTopic\":\"joint_states\"}";
+               "\"robotStatePublisher\":false,\"jointStateTopic\":\"joint_states\","
+               "\"sceneModel\":\"\",\"odometryTopic\":\"odom\",\"pathTopic\":\"path\"}";
     }
     raw << ']';
     std::vector<RobotDescription> robots;
     std::string error;
     EXPECT_FALSE(readRobotVisualizationRoster(raw.str(), &robots, &error));
     EXPECT_NE(error.find("at most 256"), std::string::npos) << error;
+}
+
+TEST(RobotDescriptionRuntime, RejectsDuplicateSceneModelMapping) {
+    const std::string raw = R"json([
+      {"name":"uav7","namespace":"/uav7","descriptionPackage":"scout_description","descriptionFile":"urdf/scout_visual.urdf","robotStatePublisher":false,"jointStateTopic":"joint_states","sceneModel":"ugv1","odometryTopic":"odom","pathTopic":"path"},
+      {"name":"uav8","namespace":"/uav8","descriptionPackage":"scout_description","descriptionFile":"urdf/scout_visual.urdf","robotStatePublisher":false,"jointStateTopic":"joint_states","sceneModel":"ugv1","odometryTopic":"odom","pathTopic":"path"}
+    ])json";
+    std::vector<RobotDescription> robots;
+    std::string error;
+    EXPECT_FALSE(readRobotVisualizationRoster(raw, &robots, &error));
+    EXPECT_NE(error.find("repeats scene model ugv1"), std::string::npos) << error;
 }
 
 }  // namespace

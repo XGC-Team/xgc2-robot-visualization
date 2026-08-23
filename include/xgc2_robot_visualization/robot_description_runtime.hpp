@@ -5,10 +5,10 @@
 
 namespace xgc2_robot_visualization {
 
-// RobotDescription is the kind-neutral, frozen input of the managed
-// description/RSP runtime. Every value is already projected by Core from the
-// immutable Experiment Robot roster; no asset payload or credential crosses
-// this boundary.
+// RobotDescription is the kind-neutral, frozen input shared by the managed
+// description and scene runtimes. Core has already projected every field from
+// the immutable Experiment Robot roster; no runtime guesses a namespace,
+// scene identity, or public Path topic.
 struct RobotDescription {
     std::string name;
     std::string ros_namespace;
@@ -16,6 +16,9 @@ struct RobotDescription {
     std::string description_file;
     bool robot_state_publisher;
     std::string joint_state_topic;
+    std::string scene_model;
+    std::string odometry_topic;
+    std::string path_topic;
 };
 
 // readRobotVisualizationRoster strictly decodes the canonical JSON array

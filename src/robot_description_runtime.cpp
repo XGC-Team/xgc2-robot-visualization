@@ -1,4 +1,4 @@
-#include "robot_description_runtime.hpp"
+#include "xgc2_robot_visualization/robot_description_runtime.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -90,9 +90,10 @@ bool readRobotVisualizationRoster(const std::string& raw,
 
     static const std::set<std::string> allowed_fields = {
         "name", "namespace", "descriptionPackage", "descriptionFile",
-        "robotStatePublisher", "jointStateTopic",
+        "robotStatePublisher", "jointStateTopic", "sceneModel", "odometryTopic", "pathTopic",
     };
     std::set<std::string> names;
+    std::set<std::string> scene_models;
     std::vector<RobotDescription> prepared;
     for (const auto& item : root) {
         if (!item.first.empty()) {
@@ -122,6 +123,9 @@ bool readRobotVisualizationRoster(const std::string& raw,
             robot.description_file = item.second.get<std::string>("descriptionFile");
             robot.robot_state_publisher = item.second.get<bool>("robotStatePublisher");
             robot.joint_state_topic = item.second.get<std::string>("jointStateTopic");
+            robot.scene_model = item.second.get<std::string>("sceneModel");
+            robot.odometry_topic = item.second.get<std::string>("odometryTopic");
+            robot.path_topic = item.second.get<std::string>("pathTopic");
         } catch (const std::exception& exception) {
             *error = std::string("frozen Robot visualization roster entry is incomplete: ") +
                      exception.what();
@@ -131,13 +135,21 @@ bool readRobotVisualizationRoster(const std::string& raw,
             robot.ros_namespace != "/" + robot.name ||
             !canonicalROSPackage(robot.description_package) ||
             !canonicalDescriptionFile(robot.description_file) ||
-            !canonicalRelativeROSName(robot.joint_state_topic)) {
+            !canonicalRelativeROSName(robot.joint_state_topic) ||
+            (!robot.scene_model.empty() && !canonicalROSIdentifier(robot.scene_model)) ||
+            (!robot.odometry_topic.empty() && !canonicalRelativeROSName(robot.odometry_topic)) ||
+            (!robot.path_topic.empty() && !canonicalRelativeROSName(robot.path_topic)) ||
+            (!robot.scene_model.empty() && robot.path_topic.empty())) {
             *error = "frozen Robot visualization roster entry for " + robot.name +
                      " is not canonical";
             return false;
         }
         if (!names.insert(robot.name).second) {
             *error = "frozen Robot visualization roster repeats model " + robot.name;
+            return false;
+        }
+        if (!robot.scene_model.empty() && !scene_models.insert(robot.scene_model).second) {
+            *error = "frozen Robot visualization roster repeats scene model " + robot.scene_model;
             return false;
         }
         prepared.push_back(std::move(robot));
