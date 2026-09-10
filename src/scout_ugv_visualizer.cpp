@@ -294,8 +294,8 @@ void ScoutUgvVisualizer::updateWheelPhases(ModelVisualState* visual, const UgvVi
 }
 
 void ScoutUgvVisualizer::updatePath(ModelVisualState* visual, const UgvVisualState& state) const {
-    pushPathHistory(&visual->path, state.stamp, state.pose.position, config_.path_publish_rate,
-                    config_.path_history_duration_sec, config_.path_limit);
+    pushPathHistory(&visual->path, state.stamp, flattenGroundVehicleHistoryPoint(state.pose.position),
+                    config_.path_publish_rate, config_.path_history_duration_sec, config_.path_limit);
 }
 
 void ScoutUgvVisualizer::addBodyMarkers(const UgvVisualState& state, visualization_msgs::MarkerArray* markers,

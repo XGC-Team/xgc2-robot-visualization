@@ -16,9 +16,10 @@ struct PathRuntimeConfig {
     int max_points{0};
 };
 
-// BoundedPathRuntime retains authoritative poses exactly as received. It does
-// not transform, offset, or synthesize z; callers must provide poses already in
-// the declared Fixed Frame.
+// BoundedPathRuntime retains poses exactly as received. It does not transform,
+// offset, or synthesize z. Callers must provide poses already in the declared
+// Fixed Frame. Ground-vehicle history callers flatten world z to 0 first;
+// UAV history keeps the fused pose z.
 class BoundedPathRuntime {
   public:
     BoundedPathRuntime(std::string frame_id, PathRuntimeConfig config);

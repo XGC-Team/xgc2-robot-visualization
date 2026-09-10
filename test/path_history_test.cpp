@@ -1,6 +1,7 @@
 #include "xgc2_robot_visualization/path_history.hpp"
 
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/Pose.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <gtest/gtest.h>
 #include <ros/time.h>
@@ -27,6 +28,24 @@ const visualization_msgs::Marker *findNs(const visualization_msgs::MarkerArray &
         }
     }
     return nullptr;
+}
+
+TEST(PathHistory, GroundVehicleHistoryDropsWorldZ) {
+    geometry_msgs::Point point;
+    point.x = 1.5;
+    point.y = -0.4;
+    point.z = 0.37;
+    const geometry_msgs::Point flat = flattenGroundVehicleHistoryPoint(point);
+    EXPECT_DOUBLE_EQ(flat.x, 1.5);
+    EXPECT_DOUBLE_EQ(flat.y, -0.4);
+    EXPECT_DOUBLE_EQ(flat.z, 0.0);
+
+    geometry_msgs::Pose pose;
+    pose.position = point;
+    pose.orientation.w = 1.0;
+    const geometry_msgs::Pose flat_pose = flattenGroundVehicleHistoryPose(pose);
+    EXPECT_DOUBLE_EQ(flat_pose.position.z, 0.0);
+    EXPECT_DOUBLE_EQ(flat_pose.orientation.w, 1.0);
 }
 
 TEST(PathHistory, BudgetIsDurationTimesRateNotAFewFrames) {
@@ -102,7 +121,7 @@ TEST(Fs150Path, GroundAndTakeoffZMatchWorldPose) {
     EXPECT_DOUBLE_EQ(path->points.back().z, 1.5);
 }
 
-TEST(ScoutPath, SharesTimeWindowAndKeepsGroundZ) {
+TEST(ScoutPath, SharesTimeWindowAndForcesWorldZToZero) {
     ScoutUgvVisualizer::Config config;
     config.path_publish_rate = 10.0;
     config.path_history_duration_sec = 60.0;
@@ -123,11 +142,11 @@ TEST(ScoutPath, SharesTimeWindowAndKeepsGroundZ) {
     const visualization_msgs::Marker *path = findNs(markers, "ugv1_actual_path");
     ASSERT_NE(path, nullptr);
     EXPECT_GE(path->points.size(), 2U);
-    EXPECT_DOUBLE_EQ(path->points.front().z, 0.08);
-    EXPECT_DOUBLE_EQ(path->points.back().z, 0.08);
+    EXPECT_DOUBLE_EQ(path->points.front().z, 0.0);
+    EXPECT_DOUBLE_EQ(path->points.back().z, 0.0);
 }
 
-TEST(MecanumPath, SharesTimeWindowAndKeepsGroundZ) {
+TEST(MecanumPath, SharesTimeWindowAndForcesWorldZToZero) {
     MecanumUgvVisualizer::Config config;
     config.path_publish_rate = 10.0;
     config.path_history_duration_sec = 60.0;
@@ -148,7 +167,7 @@ TEST(MecanumPath, SharesTimeWindowAndKeepsGroundZ) {
     const visualization_msgs::Marker *path = findNs(markers, "ugv2_actual_path");
     ASSERT_NE(path, nullptr);
     EXPECT_GE(path->points.size(), 2U);
-    EXPECT_DOUBLE_EQ(path->points.back().z, 0.05);
+    EXPECT_DOUBLE_EQ(path->points.back().z, 0.0);
 }
 
 TEST(PathHistory, ThreeKindsShareTheSameDefaultWindow) {

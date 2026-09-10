@@ -1,5 +1,6 @@
 #include "xgc2_robot_visualization/robot_description_runtime.hpp"
 
+#include <cmath>
 #include <algorithm>
 #include <cctype>
 #include <regex>
@@ -92,6 +93,7 @@ bool readRobotVisualizationRoster(const std::string& raw,
         "name", "namespace", "descriptionPackage", "descriptionFile",
         "robotStatePublisher", "jointStateTopic", "sceneModel", "odometryTopic", "pathTopic",
     };
+    const std::set<std::string> optional_fields = {"historyWindowSec", "arPoseTopic", "arPathTopic", "worldOffset", "heightProjectionColor"};
     std::set<std::string> names;
     std::set<std::string> scene_models;
     std::vector<RobotDescription> prepared;
@@ -102,7 +104,7 @@ bool readRobotVisualizationRoster(const std::string& raw,
         }
         std::set<std::string> entry_fields;
         for (const auto& field : item.second) {
-            if (allowed_fields.count(field.first) == 0) {
+            if (allowed_fields.count(field.first) == 0 && optional_fields.count(field.first) == 0) {
                 *error = "frozen Robot visualization roster contains unknown field " + field.first;
                 return false;
             }
@@ -111,6 +113,7 @@ bool readRobotVisualizationRoster(const std::string& raw,
                 return false;
             }
         }
+        for (const auto& optional : optional_fields) { entry_fields.erase(optional); }
         if (entry_fields != allowed_fields) {
             *error = "frozen Robot visualization roster entry does not have the exact contract fields";
             return false;
@@ -126,6 +129,31 @@ bool readRobotVisualizationRoster(const std::string& raw,
             robot.scene_model = item.second.get<std::string>("sceneModel");
             robot.odometry_topic = item.second.get<std::string>("odometryTopic");
             robot.path_topic = item.second.get<std::string>("pathTopic");
+            robot.history_window_sec = item.second.get<double>("historyWindowSec", 60.0);
+            robot.height_projection_color = item.second.get<std::string>("heightProjectionColor", "");
+            if (!robot.height_projection_color.empty() &&
+                (robot.height_projection_color.size() != 7 || robot.height_projection_color[0] != '#' ||
+                 robot.height_projection_color.find_first_not_of("0123456789abcdef", 1) != std::string::npos)) {
+                throw std::runtime_error("heightProjectionColor must be canonical #rrggbb");
+            }
+            robot.ar_pose_topic = item.second.get<std::string>("arPoseTopic", "");
+            robot.ar_path_topic = item.second.get<std::string>("arPathTopic", "");
+            const auto offset = item.second.get_child_optional("worldOffset");
+            if (offset) {
+                if (offset->size() != 3) { throw std::runtime_error("worldOffset requires three coordinates"); }
+                std::size_t index = 0;
+                for (const auto& value : *offset) {
+                    const double coordinate = value.second.get_value<double>();
+                    if (!value.first.empty() || !std::isfinite(coordinate)) { throw std::runtime_error("worldOffset must be finite"); }
+                    robot.world_offset[index++] = coordinate;
+                }
+            }
+            if (!std::isfinite(robot.history_window_sec) || robot.history_window_sec < 0.1 || robot.history_window_sec > 3600.0 ||
+                robot.ar_pose_topic.empty() != robot.ar_path_topic.empty() ||
+                (!robot.ar_path_topic.empty() && !canonicalRelativeROSName(robot.ar_path_topic)) ||
+                (!robot.ar_pose_topic.empty() && (robot.ar_pose_topic.front() != '/' || !canonicalRelativeROSName(robot.ar_pose_topic.substr(1))))) {
+                throw std::runtime_error("invalid AR history configuration");
+            }
         } catch (const std::exception& exception) {
             *error = std::string("frozen Robot visualization roster entry is incomplete: ") +
                      exception.what();

@@ -315,8 +315,8 @@ void MecanumUgvVisualizer::updatePath(ModelVisualState* visual, const MecanumVis
     if (visual == nullptr) {
         return;
     }
-    pushPathHistory(&visual->path, state.stamp, state.pose.position, config_.path_publish_rate,
-                    config_.path_history_duration_sec, config_.path_limit);
+    pushPathHistory(&visual->path, state.stamp, flattenGroundVehicleHistoryPoint(state.pose.position),
+                    config_.path_publish_rate, config_.path_history_duration_sec, config_.path_limit);
 }
 
 void MecanumUgvVisualizer::addBodyMarkers(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers,

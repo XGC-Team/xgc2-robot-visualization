@@ -1,6 +1,7 @@
 #pragma once
 
 #include <geometry_msgs/Point.h>
+#include <geometry_msgs/Pose.h>
 #include <ros/time.h>
 
 #include <algorithm>
@@ -14,6 +15,20 @@ namespace xgc2_robot_visualization {
 // of leftover frames. Default 60 s at 10 Hz is 601 points.
 constexpr double kDefaultPathHistoryDurationSec = 60.0;
 constexpr double kDefaultPathPublishRateHz = 10.0;
+
+// Ground-vehicle history is drawn on the world XY plane. Canonical /pose still
+// carries mocap marker height; accumulating that z makes the trail float.
+// UAV history keeps world z. BoundedPathRuntime stores whatever the caller
+// passes; UGV publishers flatten before append.
+inline geometry_msgs::Point flattenGroundVehicleHistoryPoint(geometry_msgs::Point point) {
+    point.z = 0.0;
+    return point;
+}
+
+inline geometry_msgs::Pose flattenGroundVehicleHistoryPose(geometry_msgs::Pose pose) {
+    pose.position.z = 0.0;
+    return pose;
+}
 
 struct PathSample {
     ros::Time stamp;

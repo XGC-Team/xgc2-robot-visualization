@@ -47,6 +47,22 @@ TEST(RobotDescriptionRuntime, AcceptsAndSortsMixedFrozenRoster) {
     EXPECT_EQ(robots[1].path_topic, "path");
 }
 
+TEST(RobotDescriptionRuntime, ReadsBoundedARHistoryAndWorldOffset) {
+    std::string row(kB2);
+    row.insert(row.rfind('}'), R"json(,"historyWindowSec":10,"arPoseTopic":"/vrpn_client_node/body/pose","arPathTopic":"ar_path","worldOffset":[1,2,3])json");
+    std::vector<RobotDescription> robots;
+    std::string error;
+    ASSERT_TRUE(readRobotVisualizationRoster("[" + row + "]", &robots, &error)) << error;
+    ASSERT_EQ(robots.size(), 1u);
+    EXPECT_DOUBLE_EQ(robots[0].history_window_sec, 10);
+    EXPECT_EQ(robots[0].ar_pose_topic, "/vrpn_client_node/body/pose");
+    EXPECT_EQ(robots[0].ar_path_topic, "ar_path");
+    EXPECT_DOUBLE_EQ(robots[0].world_offset[2], 3);
+    row.replace(row.find("[1,2,3]"), 7, "[1,2]");
+    EXPECT_FALSE(readRobotVisualizationRoster("[" + row + "]", &robots, &error));
+    EXPECT_DOUBLE_EQ(robots[0].world_offset[2], 3); // failed admission preserves the previous roster
+}
+
 TEST(RobotDescriptionRuntime, AcceptsEmptyDescriptionCapabilityRoster) {
     std::vector<RobotDescription> robots = {
         RobotDescription{"stale", "/stale", "pkg", "stale.urdf", false,
@@ -54,6 +70,23 @@ TEST(RobotDescriptionRuntime, AcceptsEmptyDescriptionCapabilityRoster) {
     std::string error;
     ASSERT_TRUE(readRobotVisualizationRoster("[]", &robots, &error)) << error;
     EXPECT_TRUE(robots.empty());
+}
+
+TEST(RobotDescriptionRuntime, ReadsOptionalCanonicalHeightProjectionColor) {
+    std::vector<RobotDescription> robots;
+    std::string error;
+    ASSERT_TRUE(readRobotVisualizationRoster("[" + std::string(kB2) + "]", &robots, &error)) << error;
+    EXPECT_TRUE(robots[0].height_projection_color.empty());
+    std::string row(kB2);
+    row.insert(row.rfind('}'), R"json(,"heightProjectionColor":"#123abc")json");
+    ASSERT_TRUE(readRobotVisualizationRoster("[" + row + "]", &robots, &error)) << error;
+    EXPECT_EQ(robots[0].height_projection_color, "#123abc");
+    for (const auto& invalid : {"#ABCDEF", "#123abcff", "red"}) {
+        std::string bad(row);
+        bad.replace(bad.find("#123abc"), 7, invalid);
+        EXPECT_FALSE(readRobotVisualizationRoster("[" + bad + "]", &robots, &error));
+        EXPECT_EQ(robots[0].height_projection_color, "#123abc");
+    }
 }
 
 TEST(RobotDescriptionRuntime, RejectsNonCanonicalOrIncompleteRoster) {
