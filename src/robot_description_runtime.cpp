@@ -167,7 +167,7 @@ bool readRobotVisualizationRoster(const std::string& raw,
             (!robot.scene_model.empty() && !canonicalROSIdentifier(robot.scene_model)) ||
             (!robot.odometry_topic.empty() && !canonicalRelativeROSName(robot.odometry_topic)) ||
             (!robot.path_topic.empty() && !canonicalRelativeROSName(robot.path_topic)) ||
-            (!robot.scene_model.empty() && robot.path_topic.empty())) {
+            (!robot.scene_model.empty() && (robot.path_topic.empty() || robot.robot_state_publisher))) {
             *error = "frozen Robot visualization roster entry for " + robot.name +
                      " is not canonical";
             return false;

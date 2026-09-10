@@ -100,6 +100,7 @@ TEST(RobotDescriptionRuntime, RejectsNonCanonicalOrIncompleteRoster) {
         {"unknown field", std::string("[") +
              std::string(kB2).substr(0, std::string(kB2).size() - 1) +
              R"json(,"kind":"unitree_b2"}])json", "unknown field kind"},
+        {"duplicate joint owners", R"json([{"name":"ugv1","namespace":"/ugv1","descriptionPackage":"scout_description","descriptionFile":"urdf/scout_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"ugv1","odometryTopic":"odom","pathTopic":"path"}])json", "not canonical"},
         {"namespace mismatch", R"json([{"name":"b21","namespace":"/dog","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"path"}])json", "not canonical"},
         {"absolute joint topic", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"urdf/b2arx_visual.urdf","robotStatePublisher":true,"jointStateTopic":"/joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"path"}])json", "not canonical"},
         {"host description path", R"json([{"name":"b21","namespace":"/b21","descriptionPackage":"b2arx_description","descriptionFile":"/home/user/b2.urdf","robotStatePublisher":true,"jointStateTopic":"joint_states","sceneModel":"","odometryTopic":"odom","pathTopic":"path"}])json", "not canonical"},
