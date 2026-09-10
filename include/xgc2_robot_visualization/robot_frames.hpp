@@ -9,9 +9,13 @@ namespace xgc2_robot_visualization {
 // is part of the product's contract with the viewer rather than a detail of any
 // one visualizer.
 
+inline std::string robotFramePrefix(const std::string& robot_name) {
+    return "xgc/robots/" + robot_name;
+}
+
 // The robot's body: its position and its attitude.
 inline std::string robotBodyFrame(const std::string& robot_name) {
-    return robot_name + "/base_link";
+    return robotFramePrefix(robot_name) + "/base_link";
 }
 
 // A robot's name label hangs a fixed height above it, and must stay there. The
@@ -25,7 +29,7 @@ inline std::string robotBodyFrame(const std::string& robot_name) {
 // every rendered frame -- instead of as a message that has to be retransmitted
 // before the label can move.
 inline std::string robotLabelFrame(const std::string& robot_name) {
-    return robot_name + "/label";
+    return robotFramePrefix(robot_name) + "/label";
 }
 
 } // namespace xgc2_robot_visualization

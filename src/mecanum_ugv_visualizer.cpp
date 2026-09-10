@@ -331,7 +331,7 @@ void MecanumUgvVisualizer::addBodyMarkers(const MecanumVisualState& state, visua
                                                   body ? makeColor(0.9, 0.8, 0.6, 1.0) : makeColor(0.2, 0.2, 0.2, 1.0),
                                                   config_.mesh_scale, false));
         if (!body) {
-            transforms->push_back(makeTransform(state.name + "/base_link", state.name + "/" + part.name, part.pose,
+            transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + part.name, part.pose,
                                                 state.stamp));
         }
     }
@@ -349,7 +349,7 @@ void MecanumUgvVisualizer::addWheelMarkers(const MecanumVisualState& state, cons
                                                   static_cast<int>(fixedParts().size() + index), wheel.mesh,
                                                   config_.frame_id, composePose(state.pose, wheel_pose), state.stamp,
                                                   makeColor(0.6, 0.6, 0.6, 1.0), config_.mesh_scale, false));
-        transforms->push_back(makeTransform(state.name + "/base_link", state.name + "/" + wheel.name, wheel_pose,
+        transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + wheel.name, wheel_pose,
                                             state.stamp));
     }
 }

@@ -224,7 +224,7 @@ void Fs150UavVisualizer::addRotorMarkers(const UavVisualState& state, const Mode
         rotor_relative_pose.position = makePoint(rotor.offset.x, rotor.offset.y, rotor.offset.z);
         rotor_relative_pose.orientation = yawQuaternion(phase);
         transforms->push_back(
-            makeTransform(state.name + "/base_link", state.name + "/" + rotor.name, rotor_relative_pose, state.stamp));
+            makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + rotor.name, rotor_relative_pose, state.stamp));
 
         geometry_msgs::Pose rotor_pose;
         const geometry_msgs::Vector3 offset = rotateVector(state.pose.orientation, rotor.offset);

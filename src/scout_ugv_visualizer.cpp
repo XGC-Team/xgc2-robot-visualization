@@ -312,7 +312,7 @@ void ScoutUgvVisualizer::addBodyMarkers(const UgvVisualState& state, visualizati
     markers->markers.push_back(makeMeshMarker(state.name + "_box", 1, kScoutBoxMesh, config_.frame_id,
                                               box_visual_pose, state.stamp, makeColor(1.0, 1.0, 1.0, 1.0),
                                               config_.mesh_scale, false));
-    transforms->push_back(makeTransform(state.name + "/base_link", state.name + "/box_link", box_joint_pose,
+    transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/box_link", box_joint_pose,
                                         state.stamp));
 }
 
@@ -331,7 +331,7 @@ void ScoutUgvVisualizer::addWheelMarkers(const UgvVisualState& state, const Mode
                                                   kScoutWheelMesh, config_.frame_id, wheel_world_pose, state.stamp,
                                                   makeColor(1.0, 1.0, 1.0, 1.0), config_.mesh_scale, true));
         transforms->push_back(
-            makeTransform(state.name + "/base_link", state.name + "/" + wheel.link_name, wheel_pose, state.stamp));
+            makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + wheel.link_name, wheel_pose, state.stamp));
     }
 }
 

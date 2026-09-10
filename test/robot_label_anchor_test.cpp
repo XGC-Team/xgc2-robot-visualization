@@ -12,6 +12,7 @@
 
 #include <cmath>
 #include <string>
+#include <set>
 #include <vector>
 
 #include <geometry_msgs/TransformStamped.h>
@@ -167,6 +168,39 @@ TEST(RobotLabelAnchor, AnchorIsWorldParentedSoItRidesThePoseRate) {
     ASSERT_NE(anchor, nullptr);
     EXPECT_EQ(anchor->header.frame_id, "world");
     EXPECT_NE(anchor->header.frame_id, robotBodyFrame("uav1"));
+}
+
+template <typename Visualizer, typename State>
+void expectIsolatedDisplayTree(const std::string& name) {
+    Visualizer visualizer{typename Visualizer::Config{}};
+    State state;
+    state.name = name;
+    state.pose.orientation.w = 1.0;
+    state.stamp = ros::Time(7, 0);
+    visualization_msgs::MarkerArray markers;
+    std::vector<geometry_msgs::TransformStamped> transforms;
+    visualizer.append(state, &markers, &transforms);
+    const std::string prefix = "xgc/robots/" + name + "/";
+    std::set<std::string> children;
+    ASSERT_GT(transforms.size(), 2u);
+    for (const auto& transform : transforms) {
+        EXPECT_EQ(transform.child_frame_id.find(prefix), 0u);
+        EXPECT_TRUE(children.insert(transform.child_frame_id).second);
+        EXPECT_TRUE(transform.header.frame_id == "world" ||
+                    transform.header.frame_id.find(prefix) == 0u);
+        EXPECT_NE(transform.child_frame_id.find(name + "/"), 0u);
+    }
+    EXPECT_EQ(children.count(prefix + "base_link"), 1u);
+    for (const auto& marker : markers.markers) {
+        EXPECT_TRUE(marker.header.frame_id == "world" ||
+                    marker.header.frame_id.find(prefix) == 0u);
+    }
+}
+
+TEST(RobotDisplayTree, EveryBodyJointAndLabelIsIsolatedFromPlantAndOnboardFrames) {
+    expectIsolatedDisplayTree<Fs150UavVisualizer, UavVisualState>("uav1");
+    expectIsolatedDisplayTree<ScoutUgvVisualizer, UgvVisualState>("ugv1");
+    expectIsolatedDisplayTree<MecanumUgvVisualizer, MecanumVisualState>("mecanum1");
 }
 
 } // namespace
