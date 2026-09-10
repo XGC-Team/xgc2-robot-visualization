@@ -2,7 +2,7 @@
 set -euo pipefail
 
 grep -q '^id: xgc2-robot-visualization$' .xgc2/product.yml
-grep -q '^version: 0.2.0-8$' .xgc2/product.yml
+grep -q '^version: 0.2.0-10$' .xgc2/product.yml
 grep -q '<name>xgc2_robot_visualization</name>' package.xml
 grep -q 'ros-noetic-xgc2-fs150-description (>= 0.1.0-3)' .xgc2/product.yml
 grep -q 'ros-noetic-xgc2-mecanum-description (>= 0.1.0-1)' .xgc2/product.yml
