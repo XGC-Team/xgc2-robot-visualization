@@ -16,7 +16,7 @@ geometry_msgs::Pose pose(double x, double z) {
 }
 
 TEST(PathRuntime, GrowsWithMonotonicSourceTimeAndPreservesWorldPose) {
-    BoundedPathRuntime path("world", PathRuntimeConfig{10.0, 60.0, 32});
+    BoundedPathRuntime path("world", PathRuntimeConfig{10.0, kDefaultPathHistoryDurationSec, 32});
     ASSERT_TRUE(path.append(ros::Time(10, 0), pose(1.0, 3.25)));
     ASSERT_TRUE(path.append(ros::Time(10, 100000000), pose(2.0, 3.5)));
     const nav_msgs::Path& message = path.message();
@@ -30,7 +30,7 @@ TEST(PathRuntime, GrowsWithMonotonicSourceTimeAndPreservesWorldPose) {
 }
 
 TEST(PathRuntime, DecimatesAndRejectsDuplicateTime) {
-    BoundedPathRuntime path("world", PathRuntimeConfig{5.0, 60.0, 32});
+    BoundedPathRuntime path("world", PathRuntimeConfig{5.0, kDefaultPathHistoryDurationSec, 32});
     ASSERT_TRUE(path.append(ros::Time(10, 0), pose(1.0, 0.0)));
     EXPECT_FALSE(path.append(ros::Time(10, 100000000), pose(2.0, 0.0)));
     EXPECT_FALSE(path.append(ros::Time(10, 0), pose(3.0, 0.0)));
@@ -62,6 +62,48 @@ TEST(PathRuntime, ResolvesOnlyRosterOwnedRelativeTopics) {
     EXPECT_EQ(namespacedPathTopic("/uav7", "path"), "/uav7/path");
     EXPECT_THROW(namespacedPathTopic("uav7", "path"), std::invalid_argument);
     EXPECT_THROW(namespacedPathTopic("/uav7", "/path"), std::invalid_argument);
+}
+
+TEST(PathRuntime, DefaultConfigIsTheProductSixSecondWindow) {
+    EXPECT_DOUBLE_EQ(PathRuntimeConfig{}.max_age_sec, kDefaultPathHistoryDurationSec);
+    EXPECT_DOUBLE_EQ(kDefaultPathHistoryDurationSec, 6.0);
+}
+
+TEST(PathRuntime, ExpireClipsToSixSecondsWithoutSynthesizingNewSamples) {
+    BoundedPathRuntime path("world", PathRuntimeConfig{});
+    ASSERT_TRUE(path.append(ros::Time(1, 0), pose(1.0, 1.5)));
+    ASSERT_TRUE(path.append(ros::Time(4, 0), pose(2.0, 1.5)));
+    ASSERT_TRUE(path.append(ros::Time(7, 0), pose(3.0, 1.5)));
+    EXPECT_FALSE(path.expire(ros::Time(7, 0)));
+    ASSERT_EQ(path.message().poses.size(), 3U);
+    ASSERT_TRUE(path.expire(ros::Time(10, 0)));
+    ASSERT_EQ(path.message().poses.size(), 2U);
+    EXPECT_EQ(path.message().poses.front().header.stamp, ros::Time(4, 0));
+    ASSERT_TRUE(path.expire(ros::Time(10, 1)));
+    ASSERT_EQ(path.message().poses.size(), 1U);
+    EXPECT_EQ(path.message().poses.front().header.stamp, ros::Time(7, 0));
+    EXPECT_EQ(path.message().header.stamp, ros::Time(7, 0));
+    EXPECT_DOUBLE_EQ(path.message().poses.front().pose.position.x, 3.0);
+    ASSERT_TRUE(path.expire(ros::Time(14, 0)));
+    EXPECT_TRUE(path.message().poses.empty());
+}
+
+TEST(PathRuntime, ClockRollbackClearsBufferInsteadOfKeepingCachedPoses) {
+    BoundedPathRuntime path("world", PathRuntimeConfig{});
+    ASSERT_TRUE(path.append(ros::Time(20, 0), pose(1.0, 0.0)));
+    ASSERT_TRUE(path.append(ros::Time(21, 0), pose(2.0, 0.0)));
+    ASSERT_TRUE(path.append(ros::Time(1, 0), pose(9.0, 0.0)));
+    ASSERT_EQ(path.message().poses.size(), 1U);
+    EXPECT_EQ(path.message().poses.front().header.stamp, ros::Time(1, 0));
+    EXPECT_DOUBLE_EQ(path.message().poses.front().pose.position.x, 9.0);
+}
+
+TEST(PathRuntime, FrozenNowDoesNotExpireALiveWindow) {
+    BoundedPathRuntime path("world", PathRuntimeConfig{});
+    ASSERT_TRUE(path.append(ros::Time(10, 0), pose(1.0, 0.0)));
+    ASSERT_TRUE(path.append(ros::Time(12, 0), pose(2.0, 0.0)));
+    EXPECT_FALSE(path.expire(ros::Time(12, 0)));
+    EXPECT_EQ(path.message().poses.size(), 2U);
 }
 
 }  // namespace

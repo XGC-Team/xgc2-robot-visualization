@@ -47,20 +47,30 @@ TEST(RobotDescriptionRuntime, AcceptsAndSortsMixedFrozenRoster) {
     EXPECT_EQ(robots[1].path_topic, "path");
 }
 
-TEST(RobotDescriptionRuntime, ReadsBoundedARHistoryAndWorldOffset) {
+TEST(RobotDescriptionRuntime, ReadsARPoseAndWorldOffsetWithoutHistoryWindow) {
     std::string row(kB2);
-    row.insert(row.rfind('}'), R"json(,"historyWindowSec":10,"arPoseTopic":"/vrpn_client_node/body/pose","arPathTopic":"ar_path","worldOffset":[1,2,3])json");
+    row.insert(row.rfind('}'), R"json(,"arPoseTopic":"/vrpn_client_node/body/pose","arPathTopic":"ar_path","worldOffset":[1,2,3])json");
     std::vector<RobotDescription> robots;
     std::string error;
     ASSERT_TRUE(readRobotVisualizationRoster("[" + row + "]", &robots, &error)) << error;
     ASSERT_EQ(robots.size(), 1u);
-    EXPECT_DOUBLE_EQ(robots[0].history_window_sec, 10);
     EXPECT_EQ(robots[0].ar_pose_topic, "/vrpn_client_node/body/pose");
     EXPECT_EQ(robots[0].ar_path_topic, "ar_path");
     EXPECT_DOUBLE_EQ(robots[0].world_offset[2], 3);
     row.replace(row.find("[1,2,3]"), 7, "[1,2]");
     EXPECT_FALSE(readRobotVisualizationRoster("[" + row + "]", &robots, &error));
     EXPECT_DOUBLE_EQ(robots[0].world_offset[2], 3); // failed admission preserves the previous roster
+}
+
+TEST(RobotDescriptionRuntime, RejectsRetiredHistoryWindowSec) {
+    std::string row(kB2);
+    row.insert(row.rfind('}'), R"json(,"historyWindowSec":10)json");
+    std::vector<RobotDescription> robots = {RobotDescription{"keep", "/keep", "pkg", "a.urdf", false, "joint_states"}};
+    std::string error;
+    EXPECT_FALSE(readRobotVisualizationRoster("[" + row + "]", &robots, &error));
+    EXPECT_NE(error.find("unknown field historyWindowSec"), std::string::npos) << error;
+    ASSERT_EQ(robots.size(), 1u);
+    EXPECT_EQ(robots[0].name, "keep");
 }
 
 TEST(RobotDescriptionRuntime, AcceptsEmptyDescriptionCapabilityRoster) {

@@ -78,6 +78,29 @@ bool BoundedPathRuntime::append(const ros::Time& stamp, const geometry_msgs::Pos
     return true;
 }
 
+bool BoundedPathRuntime::expire(const ros::Time& now) {
+    if (now.isZero() || path_.poses.empty()) {
+        return false;
+    }
+    const ros::Time last = path_.poses.back().header.stamp;
+    if (now < last && (last - now).toSec() > std::max(1.0, max_age_sec_)) {
+        reset();
+        path_.header.stamp = now;
+        return true;
+    }
+    const std::size_t before = path_.poses.size();
+    while (!path_.poses.empty() && max_age_sec_ > 0.0 &&
+           (now - path_.poses.front().header.stamp).toSec() > max_age_sec_) {
+        path_.poses.erase(path_.poses.begin());
+    }
+    if (path_.poses.size() == before) {
+        return false;
+    }
+    path_.header.frame_id = frame_id_;
+    path_.header.stamp = path_.poses.empty() ? now : path_.poses.back().header.stamp;
+    return true;
+}
+
 void BoundedPathRuntime::reset() {
     path_.poses.clear();
     path_.header.frame_id = frame_id_;

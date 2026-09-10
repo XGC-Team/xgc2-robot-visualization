@@ -20,7 +20,6 @@ struct RobotDescription {
     std::string scene_model;
     std::string odometry_topic;
     std::string path_topic;
-    double history_window_sec{60.0};
     std::string height_projection_color;
     std::string ar_pose_topic;
     std::string ar_path_topic;

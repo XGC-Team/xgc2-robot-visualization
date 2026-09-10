@@ -12,8 +12,9 @@
 namespace xgc2_robot_visualization {
 
 // Public world trails are a time window at a stated sample rate, not a handful
-// of leftover frames. Default 60 s at 10 Hz is 601 points.
-constexpr double kDefaultPathHistoryDurationSec = 60.0;
+// of leftover frames. Product 3D and AR trails are the last 6 s at 10 Hz (61
+// points). This duration must stay equal to Core visualization.ProductRobotHistoryWindowSec.
+constexpr double kDefaultPathHistoryDurationSec = 6.0;
 constexpr double kDefaultPathPublishRateHz = 10.0;
 
 // Ground-vehicle history is drawn on the world XY plane. Canonical /pose still
@@ -60,8 +61,18 @@ inline bool pushPathHistory(std::deque<PathSample> *path, const ros::Time &stamp
         return false;
     }
     const double min_dt = 1.0 / std::max(1.0, sample_rate_hz);
-    if (!path->empty() && (stamp - path->back().stamp).toSec() < min_dt) {
-        return false;
+    if (!path->empty()) {
+        const ros::Time previous = path->back().stamp;
+        if (stamp < previous) {
+            const double reset_threshold_sec = std::max(1.0, duration_sec);
+            if ((previous - stamp).toSec() > reset_threshold_sec) {
+                path->clear();
+            } else {
+                return false;
+            }
+        } else if ((stamp - previous).toSec() < min_dt) {
+            return false;
+        }
     }
     while (path->size() >= 2 && duration_sec > 0.0 &&
            (stamp - path->front().stamp).toSec() > duration_sec) {
@@ -76,6 +87,28 @@ inline bool pushPathHistory(std::deque<PathSample> *path, const ros::Time &stamp
     sample.point = point;
     path->push_back(sample);
     return true;
+}
+
+// Drop samples older than duration_sec relative to now. A frozen now (paused
+// sim time) leaves the window intact. A large clock rollback clears the buffer.
+// Callers must not append a cached last pose with now to keep the trail alive.
+inline bool expirePathHistory(std::deque<PathSample> *path, const ros::Time &now,
+                             double duration_sec) {
+    if (path == nullptr || now.isZero() || path->empty()) {
+        return false;
+    }
+    const ros::Time last = path->back().stamp;
+    if (now < last && (last - now).toSec() > std::max(1.0, duration_sec)) {
+        path->clear();
+        return true;
+    }
+    bool changed = false;
+    while (!path->empty() && duration_sec > 0.0 &&
+           (now - path->front().stamp).toSec() > duration_sec) {
+        path->pop_front();
+        changed = true;
+    }
+    return changed;
 }
 
 inline void assignPathHistoryPoints(const std::deque<PathSample> &path,

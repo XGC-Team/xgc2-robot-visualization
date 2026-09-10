@@ -8,11 +8,13 @@
 #include <nav_msgs/Path.h>
 #include <ros/time.h>
 
+#include "xgc2_robot_visualization/path_history.hpp"
+
 namespace xgc2_robot_visualization {
 
 struct PathRuntimeConfig {
-    double sample_rate_hz{10.0};
-    double max_age_sec{60.0};
+    double sample_rate_hz{kDefaultPathPublishRateHz};
+    double max_age_sec{kDefaultPathHistoryDurationSec};
     int max_points{0};
 };
 
@@ -25,6 +27,7 @@ class BoundedPathRuntime {
     BoundedPathRuntime(std::string frame_id, PathRuntimeConfig config);
 
     bool append(const ros::Time& stamp, const geometry_msgs::Pose& pose);
+    bool expire(const ros::Time& now);
     void reset();
     const nav_msgs::Path& message() const;
 

@@ -50,26 +50,26 @@ TEST(PathHistory, GroundVehicleHistoryDropsWorldZ) {
 
 TEST(PathHistory, BudgetIsDurationTimesRateNotAFewFrames) {
     EXPECT_EQ(pathHistoryPointBudget(kDefaultPathHistoryDurationSec, kDefaultPathPublishRateHz),
-              601);
+              61);
     EXPECT_EQ(pathHistoryPointBudget(15.0, 10.0), 151);
-    EXPECT_GE(pathHistoryPointBudget(kDefaultPathHistoryDurationSec, kDefaultPathPublishRateHz),
-              100);
+    EXPECT_EQ(pathHistoryPointBudget(kDefaultPathHistoryDurationSec, kDefaultPathPublishRateHz),
+              61);
 }
 
-TEST(PathHistory, TimeWindowKeepsSixtySecondsAtTenHertz) {
+TEST(PathHistory, TimeWindowKeepsSixSecondsAtTenHertz) {
     std::deque<PathSample> path;
     geometry_msgs::Point point;
     point.z = 0.15;
-    const int budget = pathHistoryPointBudget(60.0, 10.0);
+    const int budget = pathHistoryPointBudget(kDefaultPathHistoryDurationSec, 10.0);
     for (int index = 0; index < budget + 50; ++index) {
         const ros::Time stamp(static_cast<uint32_t>(index / 10),
                               static_cast<uint32_t>((index % 10) * 100000000U));
         point.x = 0.1 * index;
-        pushPathHistory(&path, stamp, point, 10.0, 60.0, budget);
+        pushPathHistory(&path, stamp, point, 10.0, kDefaultPathHistoryDurationSec, budget);
     }
     ASSERT_FALSE(path.empty());
     EXPECT_EQ(static_cast<int>(path.size()), budget);
-    EXPECT_LE((path.back().stamp - path.front().stamp).toSec(), 60.0 + 1.0 / 10.0);
+    EXPECT_LE((path.back().stamp - path.front().stamp).toSec(), kDefaultPathHistoryDurationSec + 1.0 / 10.0);
     EXPECT_DOUBLE_EQ(path.back().point.z, 0.15);
 }
 
@@ -78,19 +78,20 @@ TEST(PathHistory, LateSubscriberStillReceivesTheRetainedWindow) {
     geometry_msgs::Point point;
     for (int index = 1; index <= 20; ++index) {
         point.x = index;
-        pushPathHistory(&path, ros::Time(index, 0), point, 1.0, 60.0, 61);
+        pushPathHistory(&path, ros::Time(index, 0), point, 1.0, kDefaultPathHistoryDurationSec, 61);
     }
     std::vector<geometry_msgs::Point> points;
     assignPathHistoryPoints(path, &points);
-    EXPECT_EQ(points.size(), 20U);
-    EXPECT_DOUBLE_EQ(points.front().x, 1.0);
+    ASSERT_FALSE(points.empty());
+    EXPECT_LE((path.back().stamp - path.front().stamp).toSec(), kDefaultPathHistoryDurationSec);
     EXPECT_DOUBLE_EQ(points.back().x, 20.0);
+    EXPECT_GE(points.front().x, 20.0 - kDefaultPathHistoryDurationSec);
 }
 
 TEST(Fs150Path, GroundAndTakeoffZMatchWorldPose) {
     Fs150UavVisualizer::Config config;
     config.path_publish_rate = 10.0;
-    config.path_history_duration_sec = 60.0;
+    config.path_history_duration_sec = kDefaultPathHistoryDurationSec;
     Fs150UavVisualizer visualizer(config);
     UavVisualState state;
     state.name = "uav1";
@@ -124,7 +125,7 @@ TEST(Fs150Path, GroundAndTakeoffZMatchWorldPose) {
 TEST(ScoutPath, SharesTimeWindowAndForcesWorldZToZero) {
     ScoutUgvVisualizer::Config config;
     config.path_publish_rate = 10.0;
-    config.path_history_duration_sec = 60.0;
+    config.path_history_duration_sec = kDefaultPathHistoryDurationSec;
     ScoutUgvVisualizer visualizer(config);
     UgvVisualState state;
     state.name = "ugv1";
@@ -149,7 +150,7 @@ TEST(ScoutPath, SharesTimeWindowAndForcesWorldZToZero) {
 TEST(MecanumPath, SharesTimeWindowAndForcesWorldZToZero) {
     MecanumUgvVisualizer::Config config;
     config.path_publish_rate = 10.0;
-    config.path_history_duration_sec = 60.0;
+    config.path_history_duration_sec = kDefaultPathHistoryDurationSec;
     MecanumUgvVisualizer visualizer(config);
     MecanumVisualState state;
     state.name = "ugv2";
@@ -191,7 +192,7 @@ TEST(PathHistory, ThreeKindsShareTheSameDefaultWindow) {
 TEST(PathHistory, InstancesAndNamesDoNotShareStorage) {
     Fs150UavVisualizer::Config config;
     config.path_publish_rate = 10.0;
-    config.path_history_duration_sec = 60.0;
+    config.path_history_duration_sec = kDefaultPathHistoryDurationSec;
     Fs150UavVisualizer first(config);
     Fs150UavVisualizer second(config);
     UavVisualState a;
@@ -246,7 +247,7 @@ template <typename Visualizer, typename State>
 void expectBoundedWindow(Visualizer *visualizer, State *state, const std::string &ns) {
     visualization_msgs::MarkerArray markers;
     std::vector<geometry_msgs::TransformStamped> transforms;
-    const int budget = pathHistoryPointBudget(60.0, 10.0);
+    const int budget = pathHistoryPointBudget(kDefaultPathHistoryDurationSec, 10.0);
     for (int index = 0; index < budget + 40; ++index) {
         state->stamp = ros::Time(static_cast<uint32_t>(index / 10),
                                  static_cast<uint32_t>((index % 10) * 100000000U));
@@ -260,10 +261,10 @@ void expectBoundedWindow(Visualizer *visualizer, State *state, const std::string
     EXPECT_EQ(static_cast<int>(path->points.size()), budget);
 }
 
-TEST(ScoutPath, EnforcesSixtySecondCapacity) {
+TEST(ScoutPath, EnforcesSixSecondCapacity) {
     ScoutUgvVisualizer::Config config;
     config.path_publish_rate = 10.0;
-    config.path_history_duration_sec = 60.0;
+    config.path_history_duration_sec = kDefaultPathHistoryDurationSec;
     ScoutUgvVisualizer visualizer(config);
     UgvVisualState state;
     state.name = "ugv1";
@@ -272,10 +273,10 @@ TEST(ScoutPath, EnforcesSixtySecondCapacity) {
     expectBoundedWindow(&visualizer, &state, "ugv1_actual_path");
 }
 
-TEST(MecanumPath, EnforcesSixtySecondCapacity) {
+TEST(MecanumPath, EnforcesSixSecondCapacity) {
     MecanumUgvVisualizer::Config config;
     config.path_publish_rate = 10.0;
-    config.path_history_duration_sec = 60.0;
+    config.path_history_duration_sec = kDefaultPathHistoryDurationSec;
     MecanumUgvVisualizer visualizer(config);
     MecanumVisualState state;
     state.name = "ugv2";
@@ -284,16 +285,43 @@ TEST(MecanumPath, EnforcesSixtySecondCapacity) {
     expectBoundedWindow(&visualizer, &state, "ugv2_actual_path");
 }
 
-TEST(Fs150Path, EnforcesSixtySecondCapacity) {
+TEST(Fs150Path, EnforcesSixSecondCapacity) {
     Fs150UavVisualizer::Config config;
     config.path_publish_rate = 10.0;
-    config.path_history_duration_sec = 60.0;
+    config.path_history_duration_sec = kDefaultPathHistoryDurationSec;
     Fs150UavVisualizer visualizer(config);
     UavVisualState state;
     state.name = "uav1";
     state.pose.orientation.w = 1.0;
     state.pose.position.z = 0.15;
     expectBoundedWindow(&visualizer, &state, "uav1_actual_path");
+}
+
+TEST(PathHistory, ExpireDropsStaleSamplesWithoutKeepAliveAppend) {
+    std::deque<PathSample> path;
+    geometry_msgs::Point point;
+    point.x = 1.0;
+    pushPathHistory(&path, ros::Time(1, 0), point, 10.0, kDefaultPathHistoryDurationSec, 61);
+    point.x = 2.0;
+    pushPathHistory(&path, ros::Time(4, 0), point, 10.0, kDefaultPathHistoryDurationSec, 61);
+    EXPECT_FALSE(expirePathHistory(&path, ros::Time(4, 0), kDefaultPathHistoryDurationSec));
+    EXPECT_EQ(path.size(), 2U);
+    EXPECT_TRUE(expirePathHistory(&path, ros::Time(11, 0), kDefaultPathHistoryDurationSec));
+    EXPECT_TRUE(path.empty());
+}
+
+TEST(PathHistory, ClockRollbackClearsBuffer) {
+    std::deque<PathSample> path;
+    geometry_msgs::Point point;
+    point.x = 1.0;
+    pushPathHistory(&path, ros::Time(20, 0), point, 10.0, kDefaultPathHistoryDurationSec, 61);
+    point.x = 2.0;
+    pushPathHistory(&path, ros::Time(21, 0), point, 10.0, kDefaultPathHistoryDurationSec, 61);
+    point.x = 9.0;
+    ASSERT_TRUE(pushPathHistory(&path, ros::Time(1, 0), point, 10.0, kDefaultPathHistoryDurationSec, 61));
+    ASSERT_EQ(path.size(), 1U);
+    EXPECT_EQ(path.front().stamp, ros::Time(1, 0));
+    EXPECT_DOUBLE_EQ(path.front().point.x, 9.0);
 }
 
 }  // namespace

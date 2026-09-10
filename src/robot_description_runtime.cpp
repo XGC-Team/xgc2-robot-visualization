@@ -93,7 +93,7 @@ bool readRobotVisualizationRoster(const std::string& raw,
         "name", "namespace", "descriptionPackage", "descriptionFile",
         "robotStatePublisher", "jointStateTopic", "sceneModel", "odometryTopic", "pathTopic",
     };
-    const std::set<std::string> optional_fields = {"historyWindowSec", "arPoseTopic", "arPathTopic", "worldOffset", "heightProjectionColor"};
+    const std::set<std::string> optional_fields = {"arPoseTopic", "arPathTopic", "worldOffset", "heightProjectionColor"};
     std::set<std::string> names;
     std::set<std::string> scene_models;
     std::vector<RobotDescription> prepared;
@@ -129,7 +129,6 @@ bool readRobotVisualizationRoster(const std::string& raw,
             robot.scene_model = item.second.get<std::string>("sceneModel");
             robot.odometry_topic = item.second.get<std::string>("odometryTopic");
             robot.path_topic = item.second.get<std::string>("pathTopic");
-            robot.history_window_sec = item.second.get<double>("historyWindowSec", 60.0);
             robot.height_projection_color = item.second.get<std::string>("heightProjectionColor", "");
             if (!robot.height_projection_color.empty() &&
                 (robot.height_projection_color.size() != 7 || robot.height_projection_color[0] != '#' ||
@@ -148,8 +147,7 @@ bool readRobotVisualizationRoster(const std::string& raw,
                     robot.world_offset[index++] = coordinate;
                 }
             }
-            if (!std::isfinite(robot.history_window_sec) || robot.history_window_sec < 0.1 || robot.history_window_sec > 3600.0 ||
-                robot.ar_pose_topic.empty() != robot.ar_path_topic.empty() ||
+            if (robot.ar_pose_topic.empty() != robot.ar_path_topic.empty() ||
                 (!robot.ar_path_topic.empty() && !canonicalRelativeROSName(robot.ar_path_topic)) ||
                 (!robot.ar_pose_topic.empty() && (robot.ar_pose_topic.front() != '/' || !canonicalRelativeROSName(robot.ar_pose_topic.substr(1))))) {
                 throw std::runtime_error("invalid AR history configuration");
