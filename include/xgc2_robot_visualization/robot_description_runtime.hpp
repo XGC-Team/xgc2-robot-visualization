@@ -26,6 +26,10 @@ struct RobotDescription {
     std::array<double, 3> world_offset{{0.0, 0.0, 0.0}};
 };
 
+std::vector<std::string> staleVisualRobotDescriptionParameters(
+    const std::vector<RobotDescription>& robots,
+    const std::vector<std::string>& listed);
+
 // readRobotVisualizationRoster strictly decodes the canonical JSON array
 // passed by the Session-owned process definition. On failure, robots is left
 // unchanged so callers cannot accidentally run a partially admitted fleet.

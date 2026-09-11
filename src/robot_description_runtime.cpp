@@ -193,4 +193,25 @@ bool readRobotVisualizationRoster(const std::string& raw,
     return true;
 }
 
+std::vector<std::string> staleVisualRobotDescriptionParameters(
+    const std::vector<RobotDescription>& robots,
+    const std::vector<std::string>& listed) {
+    static const std::string suffix = "/visual_robot_description";
+    std::set<std::string> keep;
+    for (const auto& robot : robots) {
+        keep.insert(robot.ros_namespace + suffix);
+    }
+    std::vector<std::string> stale;
+    for (const auto& name : listed) {
+        if (name.size() <= suffix.size() ||
+            name.compare(name.size() - suffix.size(), suffix.size(), suffix) != 0) {
+            continue;
+        }
+        if (keep.count(name) == 0) {
+            stale.push_back(name);
+        }
+    }
+    return stale;
+}
+
 }  // namespace xgc2_robot_visualization

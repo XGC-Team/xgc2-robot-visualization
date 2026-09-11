@@ -79,6 +79,18 @@ void publishAll(ros::NodeHandle& node,
     }
 }
 
+void deleteStaleVisualParameters(ros::NodeHandle& node,
+                                 const std::vector<RobotDescription>& robots) {
+    std::vector<std::string> listed;
+    if (!ros::param::getParamNames(listed)) {
+        return;
+    }
+    for (const auto& name :
+         xgc2_robot_visualization::staleVisualRobotDescriptionParameters(robots, listed)) {
+        node.deleteParam(name);
+    }
+}
+
 bool childExited(const ChildProcess& child, std::string* error) {
     int status = 0;
     const pid_t result = waitpid(child.pid, &status, WNOHANG);
@@ -257,6 +269,7 @@ int main(int argc, char** argv) {
     }
 
     publishAll(node, published);
+    deleteStaleVisualParameters(node, robots);
     for (const auto& robot : robots) {
         if (!robot.robot_state_publisher) {
             continue;
@@ -285,6 +298,7 @@ int main(int argc, char** argv) {
     ros::Rate rate(0.5);
     while (ros::ok() && !shutdown_requested) {
         publishAll(node, published);
+        deleteStaleVisualParameters(node, robots);
         for (const auto& child : children) {
             if (childExited(child, &error)) {
                 ROS_FATAL_STREAM(error);

@@ -164,6 +164,23 @@ TEST(RobotDescriptionRuntime, RejectsDuplicateSceneModelMapping) {
     EXPECT_NE(error.find("repeats scene model ugv1"), std::string::npos) << error;
 }
 
+TEST(RobotDescriptionRuntime, DropsLeftoverVisualParametersOutsideThisRoster) {
+    std::vector<RobotDescription> robots(1);
+    robots[0].name = "ugv2";
+    robots[0].ros_namespace = "/ugv2";
+    const std::vector<std::string> listed = {
+        "/ugv1/visual_robot_description",
+        "/ugv2/visual_robot_description",
+        "/ugv3/visual_robot_description",
+        "/ugv2/robot_description",
+        "/foxglove_bridge/param_whitelist",
+    };
+    const auto stale = staleVisualRobotDescriptionParameters(robots, listed);
+    ASSERT_EQ(stale.size(), 2u);
+    EXPECT_EQ(stale[0], "/ugv1/visual_robot_description");
+    EXPECT_EQ(stale[1], "/ugv3/visual_robot_description");
+}
+
 }  // namespace
 }  // namespace xgc2_robot_visualization
 
