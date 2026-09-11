@@ -32,4 +32,11 @@ inline std::string robotLabelFrame(const std::string& robot_name) {
     return robotFramePrefix(robot_name) + "/label";
 }
 
+// Image-pane identity. Same upright geometry as `robotLabelFrame`, but the
+// transform is sourced from the AR pose (VRPN for FS150, canonical `/pose`
+// for ground robots) so the camera overlay does not ride fused local_position.
+inline std::string robotLabelArFrame(const std::string& robot_name) {
+    return robotFramePrefix(robot_name) + "/label_ar";
+}
+
 } // namespace xgc2_robot_visualization
