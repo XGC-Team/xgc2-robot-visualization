@@ -66,6 +66,32 @@ void expectUprightAnchorAbove(const geometry_msgs::TransformStamped& anchor,
     EXPECT_DOUBLE_EQ(anchor.transform.rotation.w, 1.0);
 }
 
+TEST(Fs150Camera, OpticalAxesFollowTheNoseAndUseRobotScopedFrames) {
+    Fs150UavVisualizer visualizer{Fs150UavVisualizer::Config{}};
+    UavVisualState state;
+    state.name = "uav2";
+    state.pose.orientation = bankedAttitude();
+    state.pose.position.x = 8;
+    state.stamp = ros::Time(3);
+    visualization_msgs::MarkerArray markers;
+    std::vector<geometry_msgs::TransformStamped> transforms;
+    visualizer.append(state, &markers, &transforms);
+    const auto* camera = findTransform(transforms, "xgc/robots/uav2/camera_link");
+    const auto* optical = findTransform(transforms, "xgc/robots/uav2/camera_optical_frame");
+    ASSERT_NE(camera, nullptr);
+    ASSERT_NE(optical, nullptr);
+    EXPECT_EQ(camera->header.frame_id, "xgc/robots/uav2/base_link");
+    EXPECT_EQ(optical->header.frame_id, camera->child_frame_id);
+    EXPECT_DOUBLE_EQ(camera->transform.translation.x, 0.0488);
+    EXPECT_DOUBLE_EQ(camera->transform.translation.y, 0);
+    EXPECT_DOUBLE_EQ(camera->transform.translation.z, -0.016);
+    const auto& q = optical->transform.rotation;
+    // R * optical Z = camera X; R * optical X = camera -Y; R * optical Y = camera -Z.
+    EXPECT_DOUBLE_EQ(2*(q.x*q.z+q.w*q.y), 1);
+    EXPECT_DOUBLE_EQ(2*(q.x*q.y+q.w*q.z), -1);
+    EXPECT_DOUBLE_EQ(2*(q.y*q.z+q.w*q.x), -1);
+}
+
 TEST(RobotLabelAnchor, MultirotorLabelStaysOverheadWhileBanking) {
     Fs150UavVisualizer visualizer{Fs150UavVisualizer::Config{}};
     UavVisualState state;

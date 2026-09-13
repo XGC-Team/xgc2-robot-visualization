@@ -1,6 +1,7 @@
 #include "xgc2_robot_visualization/fs150_uav_visualizer.hpp"
 
 #include "xgc2_robot_visualization/robot_frames.hpp"
+#include <fs150_description/visual_geometry.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -15,9 +16,7 @@
 namespace xgc2_robot_visualization {
 namespace {
 
-constexpr const char* kFs150BodyMesh = "package://fs150_description/meshes/iris.stl";
-constexpr const char* kFs150PropCcwMesh = "package://fs150_description/meshes/iris_prop_ccw.dae";
-constexpr const char* kFs150PropCwMesh = "package://fs150_description/meshes/iris_prop_cw.dae";
+constexpr const char* kFs150BodyMesh = fs150_description::kBodyMesh;
 
 struct RotorVisual {
     const char* name;
@@ -61,12 +60,13 @@ std_msgs::ColorRGBA makeColor(double r, double g, double b, double a) {
 }
 
 const std::vector<RotorVisual>& fs150Rotors() {
-    static const std::vector<RotorVisual> rotors = {
-        {"rotor_0", makeVector3(0.13, -0.22, 0.023), kFs150PropCcwMesh, 1.0},
-        {"rotor_1", makeVector3(-0.13, 0.20, 0.023), kFs150PropCcwMesh, 1.0},
-        {"rotor_2", makeVector3(0.13, 0.22, 0.023), kFs150PropCwMesh, -1.0},
-        {"rotor_3", makeVector3(-0.13, -0.20, 0.023), kFs150PropCwMesh, -1.0},
-    };
+    static const std::vector<RotorVisual> rotors = [] {
+        std::vector<RotorVisual> result;
+        for (const auto& rotor : fs150_description::kRotors) {
+            result.push_back({rotor.name, makeVector3(rotor.x, rotor.y, rotor.z), rotor.mesh, rotor.direction});
+        }
+        return result;
+    }();
     return rotors;
 }
 
@@ -117,6 +117,7 @@ visualization_msgs::Marker makeMeshMarker(const std::string& ns, int id, const s
     marker.type = visualization_msgs::Marker::MESH_RESOURCE;
     marker.action = visualization_msgs::Marker::ADD;
     marker.mesh_resource = mesh;
+    marker.mesh_use_embedded_materials = true;
     marker.pose = pose;
     marker.scale.x = scale;
     marker.scale.y = scale;
@@ -180,6 +181,16 @@ void Fs150UavVisualizer::append(const UavVisualState& state, visualization_msgs:
         makeTransform(config_.frame_id, robotBodyFrame(state.name), state.pose, state.stamp));
     transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(state.name),
                                         labelAnchor(state.pose), state.stamp));
+    geometry_msgs::Pose camera_pose;
+    camera_pose.position = makePoint(fs150_description::kCameraX, fs150_description::kCameraY,
+                                     fs150_description::kCameraZ);
+    camera_pose.orientation = makeQuaternion(0, 0, 0, 1);
+    const std::string camera_frame = robotFramePrefix(state.name) + "/camera_link";
+    transforms->push_back(makeTransform(robotBodyFrame(state.name), camera_frame, camera_pose, state.stamp));
+    geometry_msgs::Pose optical_pose;
+    optical_pose.orientation = makeQuaternion(-0.5, 0.5, -0.5, 0.5);
+    transforms->push_back(makeTransform(camera_frame, robotFramePrefix(state.name) + "/camera_optical_frame",
+                                        optical_pose, state.stamp));
     addBodyMarker(state, markers);
     addRotorMarkers(state, visual, markers, transforms);
     addPathMarker(state, visual, markers);
@@ -209,7 +220,7 @@ void Fs150UavVisualizer::updatePath(ModelVisualState* visual, const UavVisualSta
 
 void Fs150UavVisualizer::addBodyMarker(const UavVisualState& state, visualization_msgs::MarkerArray* markers) const {
     markers->markers.push_back(makeMeshMarker(state.name + "_body", 0, kFs150BodyMesh, config_.frame_id, state.pose,
-                                              state.stamp, makeColor(0.84, 0.71, 0.10, 1.0), config_.mesh_scale));
+                                              state.stamp, makeColor(1.0, 1.0, 1.0, 1.0), config_.mesh_scale));
 }
 
 void Fs150UavVisualizer::addRotorMarkers(const UavVisualState& state, const ModelVisualState& visual,
@@ -232,11 +243,8 @@ void Fs150UavVisualizer::addRotorMarkers(const UavVisualState& state, const Mode
                                         state.pose.position.z + offset.z);
         rotor_pose.orientation = multiply(state.pose.orientation, yawQuaternion(phase));
 
-        const bool blue_rotor = std::string(rotor.name) == "rotor_0" || std::string(rotor.name) == "rotor_2";
-        const std_msgs::ColorRGBA rotor_color =
-            blue_rotor ? makeColor(0.10, 0.20, 0.90, 1.0) : makeColor(0.12, 0.12, 0.12, 1.0);
         markers->markers.push_back(makeMeshMarker(state.name + "_" + rotor.name, static_cast<int>(i) + 1, rotor.mesh,
-                                                  config_.frame_id, rotor_pose, state.stamp, rotor_color,
+                                                  config_.frame_id, rotor_pose, state.stamp, makeColor(1.0, 1.0, 1.0, 1.0),
                                                   config_.mesh_scale));
     }
 }

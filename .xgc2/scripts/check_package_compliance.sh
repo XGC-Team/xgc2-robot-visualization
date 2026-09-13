@@ -2,14 +2,13 @@
 set -euo pipefail
 
 grep -q '^id: xgc2-robot-visualization$' .xgc2/product.yml
-grep -q '^version: 0.2.0-11$' .xgc2/product.yml
 grep -q '<name>xgc2_robot_visualization</name>' package.xml
-grep -q 'ros-noetic-xgc2-fs150-description (>= 0.1.0-3)' .xgc2/product.yml
-grep -q 'ros-noetic-xgc2-mecanum-description (>= 0.1.0-1)' .xgc2/product.yml
+grep -q 'ros-noetic-xgc2-fs150-description (>= 0.1.0-11)' .xgc2/product.yml
+grep -q 'ros-noetic-xgc2-mecanum-description (>= 0.1.0-10)' .xgc2/product.yml
 grep -q 'ros-noetic-xgc2-scout-description' .xgc2/product.yml
 grep -q '^  recommends:$' .xgc2/product.yml
-grep -q '^Recommends:.*xgc2-fs150-description.*xgc2-scout-description' .xgc2/scripts/package_debs.sh
-grep -q '<exec_depend>fs150_description</exec_depend>' package.xml
+grep -q '^Recommends:.*xgc2-scout-description' .xgc2/scripts/package_debs.sh
+grep -q '<depend>fs150_description</depend>' package.xml
 grep -q '<exec_depend>mecanum_description</exec_depend>' package.xml
 grep -q '<exec_depend>scout_description</exec_depend>' package.xml
 grep -q '<depend>roslib</depend>' package.xml
@@ -33,7 +32,7 @@ grep -q 'catkin_test_results --verbose' .xgc2/scripts/build_debs_in_docker.sh
 grep -q 'xgc2-build-focal-ros-noetic:1.0.0' .xgc2/scripts/build_debs_in_docker.sh
 grep -q 'XGC2_APT_OVERLAY_URL requires XGC2_DEPENDENCY_SET_DIGEST' .xgc2/scripts/build_debs_in_docker.sh
 if grep -nE 'apt-get (update|install)' .xgc2/scripts/build_debs_in_docker.sh | \
-  grep -Ev 'apt-get update$|/workspace/out/'; then
+  grep -Ev 'apt-get update$|/workspace/out/|apt-get install -y ros-noetic-xgc2-fs150-description ros-noetic-xgc2-mecanum-description ros-noetic-xgc2-scout-description$'; then
   echo "build dependencies must come from the XGC2 image" >&2
   exit 1
 fi

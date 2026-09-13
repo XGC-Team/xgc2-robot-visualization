@@ -34,7 +34,7 @@ class MecanumUgvVisualizer {
         std::string frame_id{"world"};
         // The Nexus STL assets are authored in millimetres; this matches the
         // 0.001 scale for the millimetre-authored mecanum_description meshes.
-        double mesh_scale{0.001};
+        double mesh_scale{1.0};
         double path_publish_rate{kDefaultPathPublishRateHz};
         double path_history_duration_sec{kDefaultPathHistoryDurationSec};
         int path_limit{0};

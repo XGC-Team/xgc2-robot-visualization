@@ -4,6 +4,7 @@ project(xgc2_robot_visualization)
 add_compile_options(-std=c++14)
 
 find_package(catkin REQUIRED COMPONENTS
+  fs150_description
   geometry_msgs
   nav_msgs
   roslib

@@ -15,9 +15,9 @@
 namespace xgc2_robot_visualization {
 namespace {
 
-constexpr const char* kScoutBodyMesh = "package://scout_description/meshes/scout_mini_base_link2.dae";
-constexpr const char* kScoutBoxMesh = "package://scout_description/meshes/box_link.STL";
-constexpr const char* kScoutWheelMesh = "package://scout_description/meshes/wheel.dae";
+constexpr const char* kScoutBodyMesh = "package://scout_description/meshes/lod10k/body.dae";
+constexpr const char* kScoutBoxMesh = "package://scout_description/meshes/lod10k/payload.dae";
+constexpr const char* kScoutWheelMesh = "package://scout_description/meshes/lod10k/wheel.dae";
 
 struct WheelVisual {
     const char* link_name;
@@ -311,7 +311,7 @@ void ScoutUgvVisualizer::addBodyMarkers(const UgvVisualState& state, visualizati
         composePose(composePose(state.pose, box_joint_pose), makePoseFromXyzRpy(0.0, 0.0, 0.0, 0.0, 0.0, 3.14));
     markers->markers.push_back(makeMeshMarker(state.name + "_box", 1, kScoutBoxMesh, config_.frame_id,
                                               box_visual_pose, state.stamp, makeColor(1.0, 1.0, 1.0, 1.0),
-                                              config_.mesh_scale, false));
+                                              config_.mesh_scale, true));
     transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/box_link", box_joint_pose,
                                         state.stamp));
 }

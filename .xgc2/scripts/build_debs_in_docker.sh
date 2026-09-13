@@ -69,6 +69,19 @@ docker run --rm \
 
     cd /workspace/work
     source /opt/ros/noetic/setup.bash
+    # Resolve the declared, already-published XGC2 description packages.
+    install -d -m 0755 /etc/apt/keyrings
+    curl -fsSL https://xgc2.apt.xiaokang.ink/xgc2-archive-keyring.gpg \
+      -o /etc/apt/keyrings/xgc2-archive-keyring.gpg
+    if [[ -n "${XGC2_APT_OVERLAY_URL:-}" ]]; then
+      echo "deb [signed-by=/etc/apt/keyrings/xgc2-archive-keyring.gpg] ${XGC2_APT_OVERLAY_URL%/} focal main" \
+        > /etc/apt/sources.list.d/00-xgc2-release-train.list
+    fi
+    echo "deb [signed-by=/etc/apt/keyrings/xgc2-archive-keyring.gpg] https://xgc2.apt.xiaokang.ink focal main" \
+      > /etc/apt/sources.list.d/xgc2.list
+    apt-get update
+    apt-get install -y ros-noetic-xgc2-fs150-description ros-noetic-xgc2-mecanum-description ros-noetic-xgc2-scout-description
+
     catkin_make -DCATKIN_ENABLE_TESTING=ON
     catkin_make run_tests_xgc2_robot_visualization
     catkin_test_results --verbose
@@ -81,17 +94,6 @@ docker run --rm \
       --output-dir /workspace/out
 
     if [[ "${INSTALL_CHECK}" == "true" ]]; then
-      # Resolve the declared, already-published XGC2 description packages.
-      install -d -m 0755 /etc/apt/keyrings
-      curl -fsSL https://xgc2.apt.xiaokang.ink/xgc2-archive-keyring.gpg \
-        -o /etc/apt/keyrings/xgc2-archive-keyring.gpg
-      if [[ -n "${XGC2_APT_OVERLAY_URL:-}" ]]; then
-        echo "deb [signed-by=/etc/apt/keyrings/xgc2-archive-keyring.gpg] ${XGC2_APT_OVERLAY_URL%/} focal main" \
-          > /etc/apt/sources.list.d/00-xgc2-release-train.list
-      fi
-      echo "deb [signed-by=/etc/apt/keyrings/xgc2-archive-keyring.gpg] https://xgc2.apt.xiaokang.ink focal main" \
-        > /etc/apt/sources.list.d/xgc2.list
-      apt-get update
       apt-get install -y /workspace/out/ros-noetic-xgc2-robot-visualization_*.deb
       /workspace/repo/.xgc2/scripts/check_installed_packages.sh
     fi

@@ -48,10 +48,10 @@ TEST(MecanumUgvVisualizer, UsesNexusMeshesAndMecanumWheelKinematics) {
     ASSERT_NE(label, nullptr);
     EXPECT_EQ(label->text, "UGV 2");
     EXPECT_EQ(body->mesh_resource,
-              "package://mecanum_description/meshes/nexus_base_link.STL");
-    EXPECT_DOUBLE_EQ(body->scale.x, 0.001);
-    EXPECT_NE(upper_left->mesh_resource.find("mecanum_wheel_left.STL"), std::string::npos);
-    EXPECT_NE(upper_right->mesh_resource.find("mecanum_wheel_right.STL"), std::string::npos);
+              "package://mecanum_description/meshes/lod10k/nexus_base_link.dae");
+    EXPECT_DOUBLE_EQ(body->scale.x, 1.0);
+    EXPECT_NE(upper_left->mesh_resource.find("mecanum_wheel_left.dae"), std::string::npos);
+    EXPECT_NE(upper_right->mesh_resource.find("mecanum_wheel_right.dae"), std::string::npos);
     EXPECT_EQ(body->mesh_resource.find("scout_description"), std::string::npos);
 
     state.stamp = ros::Time(2, 0);
