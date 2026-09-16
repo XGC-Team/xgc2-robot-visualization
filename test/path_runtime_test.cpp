@@ -106,6 +106,73 @@ TEST(PathRuntime, FrozenNowDoesNotExpireALiveWindow) {
     EXPECT_EQ(path.message().poses.size(), 2U);
 }
 
+TEST(PathRuntime, BulkAppendPruningPreservesTheContinuityAnchorAndQuaternion) {
+    BoundedPathRuntime path("world", PathRuntimeConfig{10.0, 30.0, 500});
+    for (unsigned int index = 0; index <= 120; ++index) {
+        auto value = pose(index, 3.25);
+        value.orientation.z = 0.6;
+        value.orientation.w = 0.8;
+        ASSERT_TRUE(path.append(ros::Time(10 + index / 10, (index % 10) * 100000000U), value));
+    }
+    ASSERT_EQ(path.message().poses.size(), 121U);
+    const auto anchor = path.message().poses.back();
+    ASSERT_TRUE(path.append(ros::Time(100, 0), pose(999.0, 4.0)));
+    ASSERT_EQ(path.message().poses.size(), 2U);
+    const auto& retained = path.message().poses.front();
+    EXPECT_EQ(retained.header.stamp, anchor.header.stamp);
+    EXPECT_EQ(retained.header.frame_id, "world");
+    EXPECT_DOUBLE_EQ(retained.pose.position.x, 120.0);
+    EXPECT_DOUBLE_EQ(retained.pose.position.z, 3.25);
+    EXPECT_DOUBLE_EQ(retained.pose.orientation.z, 0.6);
+    EXPECT_DOUBLE_EQ(retained.pose.orientation.w, 0.8);
+    EXPECT_EQ(path.message().header.stamp, ros::Time(100, 0));
+    EXPECT_DOUBLE_EQ(path.message().poses.back().pose.position.x, 999.0);
+}
+
+TEST(PathRuntime, BulkExpiryPreservesEveryBoundarySampleAndItsPose) {
+    BoundedPathRuntime path("world", PathRuntimeConfig{10.0, 30.0, 500});
+    for (unsigned int index = 0; index <= 120; ++index) {
+        auto value = pose(index, 3.25);
+        value.orientation.z = 0.6;
+        value.orientation.w = 0.8;
+        ASSERT_TRUE(path.append(ros::Time(10 + index / 10, (index % 10) * 100000000U), value));
+    }
+    ASSERT_TRUE(path.expire(ros::Time(45, 0)));
+    ASSERT_EQ(path.message().poses.size(), 71U);
+    for (unsigned int index = 50; index <= 120; ++index) {
+        const auto& sample = path.message().poses[index - 50];
+        EXPECT_EQ(sample.header.stamp, ros::Time(10 + index / 10, (index % 10) * 100000000U));
+        EXPECT_EQ(sample.header.frame_id, "world");
+        EXPECT_DOUBLE_EQ(sample.pose.position.x, index);
+        EXPECT_DOUBLE_EQ(sample.pose.position.z, 3.25);
+        EXPECT_DOUBLE_EQ(sample.pose.orientation.z, 0.6);
+        EXPECT_DOUBLE_EQ(sample.pose.orientation.w, 0.8);
+    }
+    EXPECT_EQ(path.message().header.stamp, ros::Time(22, 0));
+    EXPECT_FALSE(path.expire(ros::Time(45, 0)));
+    ASSERT_TRUE(path.expire(ros::Time(52, 0)));
+    ASSERT_EQ(path.message().poses.size(), 1U);
+    EXPECT_EQ(path.message().poses.front().header.stamp, ros::Time(22, 0));
+    ASSERT_TRUE(path.expire(ros::Time(52, 1)));
+    EXPECT_TRUE(path.message().poses.empty());
+    EXPECT_EQ(path.message().header.stamp, ros::Time(52, 1));
+}
+
+TEST(PathRuntime, CountOnlyPruningDoesNotChangeSamplingOrPoseOrder) {
+    BoundedPathRuntime path("world", PathRuntimeConfig{10.0, 0.0, 4});
+    for (unsigned int index = 0; index < 20; ++index) {
+        ASSERT_TRUE(path.append(ros::Time(10 + index / 10, (index % 10) * 100000000U),
+                                pose(index, 2.0)));
+    }
+    ASSERT_EQ(path.message().poses.size(), 4U);
+    for (unsigned int offset = 0; offset < 4; ++offset) {
+        EXPECT_DOUBLE_EQ(path.message().poses[offset].pose.position.x, 16 + offset);
+    }
+    EXPECT_FALSE(path.expire(ros::Time(100, 0)));
+    EXPECT_FALSE(path.append(ros::Time(11, 950000000), pose(20.0, 2.0)));
+    EXPECT_EQ(path.message().poses.size(), 4U);
+}
+
 }  // namespace
 }  // namespace xgc2_robot_visualization
 

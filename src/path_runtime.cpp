@@ -1,6 +1,7 @@
 #include "xgc2_robot_visualization/path_runtime.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
@@ -61,12 +62,22 @@ bool BoundedPathRuntime::append(const ros::Time& stamp, const geometry_msgs::Pos
             return false;
         }
     }
-    while (path_.poses.size() >= 2U && max_age_sec_ > 0.0 &&
-           (stamp - path_.poses.front().header.stamp).toSec() > max_age_sec_) {
-        path_.poses.erase(path_.poses.begin());
+    // Find the same expired prefix as before, retaining the last old sample
+    // as the continuity anchor. Move surviving poses only once, not once per
+    // expired sample after a pause or a large forward time jump.
+    const std::size_t size = path_.poses.size();
+    std::size_t erase_count = 0;
+    while (size - erase_count >= 2U && max_age_sec_ > 0.0 &&
+           (stamp - path_.poses[erase_count].header.stamp).toSec() > max_age_sec_) {
+        ++erase_count;
     }
-    while (static_cast<int>(path_.poses.size()) >= max_points_) {
-        path_.poses.erase(path_.poses.begin());
+    const std::size_t capacity = static_cast<std::size_t>(max_points_);
+    if (size >= capacity) {
+        erase_count = std::max(erase_count, size - capacity + 1U);
+    }
+    if (erase_count > 0U) {
+        path_.poses.erase(path_.poses.begin(),
+                          path_.poses.begin() + static_cast<std::ptrdiff_t>(erase_count));
     }
     geometry_msgs::PoseStamped sample;
     sample.header.frame_id = frame_id_;
@@ -88,14 +99,16 @@ bool BoundedPathRuntime::expire(const ros::Time& now) {
         path_.header.stamp = now;
         return true;
     }
-    const std::size_t before = path_.poses.size();
-    while (!path_.poses.empty() && max_age_sec_ > 0.0 &&
-           (now - path_.poses.front().header.stamp).toSec() > max_age_sec_) {
-        path_.poses.erase(path_.poses.begin());
+    std::size_t erase_count = 0;
+    while (erase_count < path_.poses.size() && max_age_sec_ > 0.0 &&
+           (now - path_.poses[erase_count].header.stamp).toSec() > max_age_sec_) {
+        ++erase_count;
     }
-    if (path_.poses.size() == before) {
+    if (erase_count == 0U) {
         return false;
     }
+    path_.poses.erase(path_.poses.begin(),
+                      path_.poses.begin() + static_cast<std::ptrdiff_t>(erase_count));
     path_.header.frame_id = frame_id_;
     path_.header.stamp = path_.poses.empty() ? now : path_.poses.back().header.stamp;
     return true;
