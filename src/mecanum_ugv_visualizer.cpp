@@ -240,7 +240,9 @@ void MecanumUgvVisualizer::append(const MecanumVisualState& state, visualization
     if (markers == nullptr || transforms == nullptr) {
         return;
     }
-    ModelVisualState& visual = models_[state.name];
+    MecanumVisualState display = state;
+    display.pose = placeGroundVehicleBodyPose(state.pose, mecanumDisplayBodyZ());
+    ModelVisualState& visual = models_[display.name];
     if (visual.wheel_phases.size() != mecanumWheels().size()) {
         visual.wheel_phases.assign(mecanumWheels().size(), 0.0);
     }
@@ -250,18 +252,18 @@ void MecanumUgvVisualizer::append(const MecanumVisualState& state, visualization
     const MotionEstimate motion = estimateMotion(visual, state, dt);
     updateWheelPhases(&visual, state, motion, dt);
     updatePath(&visual, state);
-    visual.previous_pose = state.pose;
+    visual.previous_pose = display.pose;
     visual.has_previous_pose = true;
-    visual.last_update_stamp = state.stamp;
+    visual.last_update_stamp = display.stamp;
 
     transforms->push_back(
-        makeTransform(config_.frame_id, robotBodyFrame(state.name), state.pose, state.stamp));
-    transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(state.name),
-                                        labelAnchor(state.pose), state.stamp));
-    addBodyMarkers(state, markers, transforms);
-    addWheelMarkers(state, visual, markers, transforms);
-    addPathMarker(state, visual, markers);
-    addLabelMarker(state, markers);
+        makeTransform(config_.frame_id, robotBodyFrame(display.name), display.pose, display.stamp));
+    transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(display.name),
+                                        labelAnchor(display.pose), display.stamp));
+    addBodyMarkers(display, markers, transforms);
+    addWheelMarkers(display, visual, markers, transforms);
+    addPathMarker(display, visual, markers);
+    addLabelMarker(display, markers);
 }
 
 MecanumUgvVisualizer::MotionEstimate

@@ -48,6 +48,20 @@ TEST(PathHistory, GroundVehicleHistoryDropsWorldZ) {
     EXPECT_DOUBLE_EQ(flat_pose.orientation.w, 1.0);
 }
 
+TEST(PathHistory, ScoutDisplayBodyUsesGazeboChassisHeight) {
+    EXPECT_DOUBLE_EQ(scoutDisplayBodyZ(), kScoutGazeboChassisZ);
+    EXPECT_NEAR(kScoutVisualWheelRadius - kScoutVisualWheelAxleZ, 0.180998, 1.0e-9);
+    EXPECT_NEAR(scoutDisplayBodyZ(), kScoutVisualWheelRadius - kScoutVisualWheelAxleZ, 0.002);
+    EXPECT_DOUBLE_EQ(mecanumDisplayBodyZ(), 0.0);
+
+    geometry_msgs::Pose pose;
+    pose.position.z = 0.504;
+    pose.orientation.w = 1.0;
+    const geometry_msgs::Pose body = placeGroundVehicleBodyPose(pose, scoutDisplayBodyZ());
+    EXPECT_DOUBLE_EQ(body.position.z, scoutDisplayBodyZ());
+    EXPECT_DOUBLE_EQ(flattenGroundVehicleHistoryPose(pose).position.z, 0.0);
+}
+
 TEST(PathHistory, BudgetIsDurationTimesRateNotAFewFrames) {
     EXPECT_EQ(pathHistoryPointBudget(kDefaultPathHistoryDurationSec, kDefaultPathPublishRateHz),
               61);
@@ -145,6 +159,16 @@ TEST(ScoutPath, SharesTimeWindowAndForcesWorldZToZero) {
     EXPECT_GE(path->points.size(), 2U);
     EXPECT_DOUBLE_EQ(path->points.front().z, 0.0);
     EXPECT_DOUBLE_EQ(path->points.back().z, 0.0);
+
+    const geometry_msgs::TransformStamped *body = nullptr;
+    for (const geometry_msgs::TransformStamped &transform : transforms) {
+        if (transform.child_frame_id == "xgc/robots/ugv1/base_link") {
+            body = &transform;
+            break;
+        }
+    }
+    ASSERT_NE(body, nullptr);
+    EXPECT_DOUBLE_EQ(body->transform.translation.z, scoutDisplayBodyZ());
 }
 
 TEST(MecanumPath, SharesTimeWindowAndForcesWorldZToZero) {

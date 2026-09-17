@@ -17,10 +17,17 @@ namespace xgc2_robot_visualization {
 constexpr double kDefaultPathHistoryDurationSec = 6.0;
 constexpr double kDefaultPathPublishRateHz = 10.0;
 
-// Ground-vehicle history is drawn on the world XY plane. Canonical /pose still
+// Ground-vehicle *history* sits on the world XY plane. Canonical /pose still
 // carries mocap marker height; accumulating that z makes the trail float.
-// UAV history keeps world z. BoundedPathRuntime stores whatever the caller
-// passes; UGV publishers flatten before append.
+// UAV history / body keep world z. BoundedPathRuntime stores whatever the
+// caller passes; UGV path publishers flatten before append.
+//
+// Display body is not the same pin. Scout visual URDF hangs the wheel axle
+// below base_link; putting the chassis origin on z=0 buries the tires and
+// breaks AR overlay. Pin Scout base_link to the Gazebo sitting height
+// (ModelStates / simulation/ground_truth/pose.z with wheels on the plane),
+// not mocap marker height and not a reconstructed axle+radius. Mecanum
+// visual URDF already has wheel centers at +radius, so body z=0.
 inline geometry_msgs::Point flattenGroundVehicleHistoryPoint(geometry_msgs::Point point) {
     point.z = 0.0;
     return point;
@@ -28,6 +35,25 @@ inline geometry_msgs::Point flattenGroundVehicleHistoryPoint(geometry_msgs::Poin
 
 inline geometry_msgs::Pose flattenGroundVehicleHistoryPose(geometry_msgs::Pose pose) {
     pose.position.z = 0.0;
+    return pose;
+}
+
+// Scout plant sitting height. Live GCS 2026-09-18:
+// /ugv{1,2,3}/simulation/ground_truth/pose.z = 0.179964 (same as Adapter
+// /pose and sim VRPN). Documented step-response chassis z = 0.1800 m.
+// URDF axle z=-0.100998 plus radius 0.08 would be 0.180998; spawn often
+// uses 0.181 then ODE settles to the GT below. Display follows GT.
+constexpr double kScoutGazeboChassisZ = 0.180;
+constexpr double kScoutVisualWheelAxleZ = -0.100998;
+constexpr double kScoutVisualWheelRadius = 0.08;
+constexpr double kMecanumVisualWheelRadius = 0.05;
+
+inline double scoutDisplayBodyZ() { return kScoutGazeboChassisZ; }
+
+inline double mecanumDisplayBodyZ() { return 0.0; }
+
+inline geometry_msgs::Pose placeGroundVehicleBodyPose(geometry_msgs::Pose pose, double body_z) {
+    pose.position.z = body_z;
     return pose;
 }
 

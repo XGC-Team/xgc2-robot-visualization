@@ -21,6 +21,7 @@ struct PathRuntimeConfig {
 // BoundedPathRuntime retains poses exactly as received. It does not transform,
 // offset, or synthesize z. Callers must provide poses already in the declared
 // Fixed Frame. Ground-vehicle history callers flatten world z to 0 first;
+// display body uses wheel-contact height, not that path pin.
 // UAV history keeps the fused pose z.
 class BoundedPathRuntime {
   public:

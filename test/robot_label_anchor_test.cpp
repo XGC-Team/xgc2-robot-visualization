@@ -7,6 +7,7 @@
 
 #include "xgc2_robot_visualization/fs150_uav_visualizer.hpp"
 #include "xgc2_robot_visualization/mecanum_ugv_visualizer.hpp"
+#include "xgc2_robot_visualization/path_history.hpp"
 #include "xgc2_robot_visualization/robot_frames.hpp"
 #include "xgc2_robot_visualization/scout_ugv_visualizer.hpp"
 
@@ -144,7 +145,12 @@ TEST(RobotLabelAnchor, ScoutLabelStaysOverheadOnASlope) {
     const geometry_msgs::TransformStamped* anchor =
         findTransform(transforms, robotLabelFrame("ugv2"));
     ASSERT_NE(anchor, nullptr);
-    expectUprightAnchorAbove(*anchor, state.pose, 0.65);
+    geometry_msgs::Pose on_wheels = state.pose;
+    on_wheels.position.z = scoutDisplayBodyZ();
+    expectUprightAnchorAbove(*anchor, on_wheels, 0.65);
+    const geometry_msgs::TransformStamped* body = findTransform(transforms, robotBodyFrame("ugv2"));
+    ASSERT_NE(body, nullptr);
+    EXPECT_DOUBLE_EQ(body->transform.translation.z, scoutDisplayBodyZ());
 
     const visualization_msgs::Marker* label = findLabel(markers);
     ASSERT_NE(label, nullptr);
@@ -168,7 +174,12 @@ TEST(RobotLabelAnchor, MecanumLabelStaysOverheadOnASlope) {
     const geometry_msgs::TransformStamped* anchor =
         findTransform(transforms, robotLabelFrame("mecanum1"));
     ASSERT_NE(anchor, nullptr);
-    expectUprightAnchorAbove(*anchor, state.pose, 0.32);
+    geometry_msgs::Pose on_ground = state.pose;
+    on_ground.position.z = 0.0;
+    expectUprightAnchorAbove(*anchor, on_ground, 0.32);
+    const geometry_msgs::TransformStamped* body = findTransform(transforms, robotBodyFrame("mecanum1"));
+    ASSERT_NE(body, nullptr);
+    EXPECT_DOUBLE_EQ(body->transform.translation.z, 0.0);
 
     const visualization_msgs::Marker* label = findLabel(markers);
     ASSERT_NE(label, nullptr);
