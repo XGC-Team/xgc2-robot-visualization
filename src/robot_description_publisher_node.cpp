@@ -7,6 +7,7 @@
 // Robot kind switch, or singleton /robot_description participates.
 
 #include <cerrno>
+#include <chrono>
 #include <csignal>
 #include <cstdlib>
 #include <fstream>
@@ -15,6 +16,7 @@
 #include <string>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 #include <utility>
 #include <vector>
@@ -42,6 +44,9 @@ struct ChildProcess {
 
 void requestShutdown(int) {
     shutdown_requested = 1;
+    // Match roscpp's signal handler: request cleanup on its polling thread so
+    // an in-flight parameter update also stops retrying a departed ROS master.
+    ros::requestShutdown();
 }
 
 bool readFile(const std::string& file, std::string* contents, std::string* error) {
@@ -295,8 +300,8 @@ int main(int argc, char** argv) {
                                   << " frozen visual description(s) and supervised "
                                   << children.size() << " robot_state_publisher process(es)");
 
-    ros::Rate rate(0.5);
     while (ros::ok() && !shutdown_requested) {
+        const auto next_publish = std::chrono::steady_clock::now() + std::chrono::seconds(2);
         publishAll(node, published);
         deleteStaleVisualParameters(node, robots);
         for (const auto& child : children) {
@@ -307,7 +312,13 @@ int main(int argc, char** argv) {
             }
         }
         ros::spinOnce();
-        rate.sleep();
+        // The world may stop publishing /clock before this process receives
+        // TERM. Keep the publication cadence independent of simulation time,
+        // and observe the signal flag without waiting for the next publication.
+        while (ros::ok() && !shutdown_requested &&
+               std::chrono::steady_clock::now() < next_publish) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
     }
     stopChildren(children);
     return 0;
