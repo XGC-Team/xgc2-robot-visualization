@@ -7,6 +7,7 @@
 #include <cmath>
 #include <regex>
 #include <string>
+#include <utility>
 
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Vector3.h>
@@ -169,6 +170,12 @@ Fs150UavVisualizer::Fs150UavVisualizer(const Config& config) : config_(config) {
 
 void Fs150UavVisualizer::append(const UavVisualState& state, visualization_msgs::MarkerArray* markers,
                                 std::vector<geometry_msgs::TransformStamped>* transforms) {
+    append(state, markers, transforms, true, true, true);
+}
+
+void Fs150UavVisualizer::append(const UavVisualState& state, visualization_msgs::MarkerArray* markers,
+                                std::vector<geometry_msgs::TransformStamped>* transforms,
+                                bool meshes, bool path, bool label) {
     ModelVisualState& visual = models_[state.name];
     if (visual.rotor_phases.size() != fs150Rotors().size()) {
         visual.rotor_phases.assign(fs150Rotors().size(), 0.0);
@@ -177,24 +184,26 @@ void Fs150UavVisualizer::append(const UavVisualState& state, visualization_msgs:
     updateRotorPhases(&visual, state);
     updatePath(&visual, state);
 
-    transforms->push_back(
-        makeTransform(config_.frame_id, robotBodyFrame(state.name), state.pose, state.stamp));
-    transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(state.name),
-                                        labelAnchor(state.pose), state.stamp));
-    geometry_msgs::Pose camera_pose;
-    camera_pose.position = makePoint(fs150_description::kCameraX, fs150_description::kCameraY,
-                                     fs150_description::kCameraZ);
-    camera_pose.orientation = makeQuaternion(0, 0, 0, 1);
-    const std::string camera_frame = robotFramePrefix(state.name) + "/camera_link";
-    transforms->push_back(makeTransform(robotBodyFrame(state.name), camera_frame, camera_pose, state.stamp));
-    geometry_msgs::Pose optical_pose;
-    optical_pose.orientation = makeQuaternion(-0.5, 0.5, -0.5, 0.5);
-    transforms->push_back(makeTransform(camera_frame, robotFramePrefix(state.name) + "/camera_optical_frame",
-                                        optical_pose, state.stamp));
-    addBodyMarker(state, markers);
-    addRotorMarkers(state, visual, markers, transforms);
-    addPathMarker(state, visual, markers);
-    addLabelMarker(state, markers);
+    if (transforms != nullptr) {
+        transforms->push_back(
+            makeTransform(config_.frame_id, robotBodyFrame(state.name), state.pose, state.stamp));
+        transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(state.name),
+                                            labelAnchor(state.pose), state.stamp));
+        geometry_msgs::Pose camera_pose;
+        camera_pose.position = makePoint(fs150_description::kCameraX, fs150_description::kCameraY,
+                                         fs150_description::kCameraZ);
+        camera_pose.orientation = makeQuaternion(0, 0, 0, 1);
+        const std::string camera_frame = robotFramePrefix(state.name) + "/camera_link";
+        transforms->push_back(makeTransform(robotBodyFrame(state.name), camera_frame, camera_pose, state.stamp));
+        geometry_msgs::Pose optical_pose;
+        optical_pose.orientation = makeQuaternion(-0.5, 0.5, -0.5, 0.5);
+        transforms->push_back(makeTransform(camera_frame, robotFramePrefix(state.name) + "/camera_optical_frame",
+                                            optical_pose, state.stamp));
+    }
+    if (markers != nullptr && meshes) addBodyMarker(state, markers);
+    addRotorMarkers(state, visual, meshes ? markers : nullptr, transforms);
+    if (markers != nullptr && path) addPathMarker(state, visual, markers);
+    if (markers != nullptr && label) addLabelMarker(state, markers);
 }
 
 void Fs150UavVisualizer::updateRotorPhases(ModelVisualState* visual, const UavVisualState& state) const {
@@ -226,6 +235,7 @@ void Fs150UavVisualizer::addBodyMarker(const UavVisualState& state, visualizatio
 void Fs150UavVisualizer::addRotorMarkers(const UavVisualState& state, const ModelVisualState& visual,
                                          visualization_msgs::MarkerArray* markers,
                                          std::vector<geometry_msgs::TransformStamped>* transforms) const {
+    if (markers == nullptr && transforms == nullptr) return;
     const std::vector<RotorVisual>& rotors = fs150Rotors();
     for (std::size_t i = 0; i < rotors.size(); ++i) {
         const RotorVisual& rotor = rotors[i];
@@ -234,18 +244,21 @@ void Fs150UavVisualizer::addRotorMarkers(const UavVisualState& state, const Mode
         geometry_msgs::Pose rotor_relative_pose;
         rotor_relative_pose.position = makePoint(rotor.offset.x, rotor.offset.y, rotor.offset.z);
         rotor_relative_pose.orientation = yawQuaternion(phase);
-        transforms->push_back(
-            makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + rotor.name, rotor_relative_pose, state.stamp));
+        if (transforms != nullptr) {
+            transforms->push_back(
+                makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + rotor.name, rotor_relative_pose, state.stamp));
+        }
 
-        geometry_msgs::Pose rotor_pose;
-        const geometry_msgs::Vector3 offset = rotateVector(state.pose.orientation, rotor.offset);
-        rotor_pose.position = makePoint(state.pose.position.x + offset.x, state.pose.position.y + offset.y,
-                                        state.pose.position.z + offset.z);
-        rotor_pose.orientation = multiply(state.pose.orientation, yawQuaternion(phase));
-
-        markers->markers.push_back(makeMeshMarker(state.name + "_" + rotor.name, static_cast<int>(i) + 1, rotor.mesh,
-                                                  config_.frame_id, rotor_pose, state.stamp, makeColor(1.0, 1.0, 1.0, 1.0),
-                                                  config_.mesh_scale));
+        if (markers != nullptr) {
+            geometry_msgs::Pose rotor_pose;
+            const geometry_msgs::Vector3 offset = rotateVector(state.pose.orientation, rotor.offset);
+            rotor_pose.position = makePoint(state.pose.position.x + offset.x, state.pose.position.y + offset.y,
+                                            state.pose.position.z + offset.z);
+            rotor_pose.orientation = multiply(state.pose.orientation, yawQuaternion(phase));
+            markers->markers.push_back(makeMeshMarker(state.name + "_" + rotor.name, static_cast<int>(i) + 1, rotor.mesh,
+                                                      config_.frame_id, rotor_pose, state.stamp, makeColor(1.0, 1.0, 1.0, 1.0),
+                                                      config_.mesh_scale));
+        }
     }
 }
 
@@ -268,7 +281,7 @@ void Fs150UavVisualizer::addPathMarker(const UavVisualState& state, const ModelV
     marker.color.g = 0.55;
     marker.color.b = 1.0;
     marker.color.a = 1.0;
-    markers->markers.push_back(marker);
+    markers->markers.push_back(std::move(marker));
 }
 
 void Fs150UavVisualizer::addLabelMarker(const UavVisualState& state, visualization_msgs::MarkerArray* markers) const {

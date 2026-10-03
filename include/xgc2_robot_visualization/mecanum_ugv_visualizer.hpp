@@ -48,6 +48,10 @@ class MecanumUgvVisualizer {
 
     void append(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers,
                 std::vector<geometry_msgs::TransformStamped>* transforms);
+    // Nullable outputs; selection changes construction, never phase/history.
+    void append(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers,
+                std::vector<geometry_msgs::TransformStamped>* transforms,
+                bool meshes, bool path, bool label);
 
   private:
     struct ModelVisualState {

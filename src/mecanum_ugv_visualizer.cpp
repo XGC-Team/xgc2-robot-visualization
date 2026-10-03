@@ -6,6 +6,7 @@
 #include <cmath>
 #include <regex>
 #include <string>
+#include <utility>
 
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Vector3.h>
@@ -237,9 +238,12 @@ MecanumUgvVisualizer::MecanumUgvVisualizer(const Config& config) : config_(confi
 
 void MecanumUgvVisualizer::append(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers,
                                   std::vector<geometry_msgs::TransformStamped>* transforms) {
-    if (markers == nullptr || transforms == nullptr) {
-        return;
-    }
+    append(state, markers, transforms, true, true, true);
+}
+
+void MecanumUgvVisualizer::append(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers,
+                                  std::vector<geometry_msgs::TransformStamped>* transforms,
+                                bool meshes, bool path, bool label) {
     MecanumVisualState display = state;
     display.pose = placeGroundVehicleBodyPose(state.pose, mecanumDisplayBodyZ());
     ModelVisualState& visual = models_[display.name];
@@ -256,14 +260,16 @@ void MecanumUgvVisualizer::append(const MecanumVisualState& state, visualization
     visual.has_previous_pose = true;
     visual.last_update_stamp = display.stamp;
 
-    transforms->push_back(
-        makeTransform(config_.frame_id, robotBodyFrame(display.name), display.pose, display.stamp));
-    transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(display.name),
-                                        labelAnchor(display.pose), display.stamp));
-    addBodyMarkers(display, markers, transforms);
-    addWheelMarkers(display, visual, markers, transforms);
-    addPathMarker(display, visual, markers);
-    addLabelMarker(display, markers);
+    if (transforms != nullptr) {
+        transforms->push_back(
+            makeTransform(config_.frame_id, robotBodyFrame(display.name), display.pose, display.stamp));
+        transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(display.name),
+                                            labelAnchor(display.pose), display.stamp));
+    }
+    addBodyMarkers(display, meshes ? markers : nullptr, transforms);
+    addWheelMarkers(display, visual, meshes ? markers : nullptr, transforms);
+    if (markers != nullptr && path) addPathMarker(display, visual, markers);
+    if (markers != nullptr && label) addLabelMarker(display, markers);
 }
 
 MecanumUgvVisualizer::MotionEstimate
@@ -323,18 +329,23 @@ void MecanumUgvVisualizer::updatePath(ModelVisualState* visual, const MecanumVis
 
 void MecanumUgvVisualizer::addBodyMarkers(const MecanumVisualState& state, visualization_msgs::MarkerArray* markers,
                                           std::vector<geometry_msgs::TransformStamped>* transforms) const {
+    if (markers == nullptr && transforms == nullptr) return;
     const std::vector<MeshPart>& parts = fixedParts();
     for (std::size_t index = 0; index < parts.size(); ++index) {
         const MeshPart& part = parts[index];
-        const geometry_msgs::Pose world_pose = composePose(state.pose, part.pose);
         const bool body = index == 0U;
-        markers->markers.push_back(makeMeshMarker(state.name + "_mecanum_" + part.name, static_cast<int>(index),
-                                                  part.mesh, config_.frame_id, world_pose, state.stamp,
-                                                  body ? makeColor(0.9, 0.8, 0.6, 1.0) : makeColor(0.2, 0.2, 0.2, 1.0),
-                                                  config_.mesh_scale, false));
+        if (markers != nullptr) {
+            const geometry_msgs::Pose world_pose = composePose(state.pose, part.pose);
+            markers->markers.push_back(makeMeshMarker(state.name + "_mecanum_" + part.name, static_cast<int>(index),
+                                                      part.mesh, config_.frame_id, world_pose, state.stamp,
+                                                      body ? makeColor(0.9, 0.8, 0.6, 1.0) : makeColor(0.2, 0.2, 0.2, 1.0),
+                                                      config_.mesh_scale, false));
+        }
         if (!body) {
-            transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + part.name, part.pose,
-                                                state.stamp));
+            if (transforms != nullptr) {
+                transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + part.name, part.pose,
+                                                    state.stamp));
+            }
         }
     }
 }
@@ -342,17 +353,22 @@ void MecanumUgvVisualizer::addBodyMarkers(const MecanumVisualState& state, visua
 void MecanumUgvVisualizer::addWheelMarkers(const MecanumVisualState& state, const ModelVisualState& visual,
                                            visualization_msgs::MarkerArray* markers,
                                            std::vector<geometry_msgs::TransformStamped>* transforms) const {
+    if (markers == nullptr && transforms == nullptr) return;
     const std::vector<WheelVisual>& wheels = mecanumWheels();
     for (std::size_t index = 0; index < wheels.size(); ++index) {
         const WheelVisual& wheel = wheels[index];
         geometry_msgs::Pose wheel_pose = wheel.pose;
         wheel_pose.orientation = multiply(wheel.pose.orientation, rpyQuaternion(0.0, visual.wheel_phases[index], 0.0));
-        markers->markers.push_back(makeMeshMarker(state.name + "_mecanum_" + wheel.name,
-                                                  static_cast<int>(fixedParts().size() + index), wheel.mesh,
-                                                  config_.frame_id, composePose(state.pose, wheel_pose), state.stamp,
-                                                  makeColor(0.6, 0.6, 0.6, 1.0), config_.mesh_scale, false));
-        transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + wheel.name, wheel_pose,
-                                            state.stamp));
+        if (markers != nullptr) {
+            markers->markers.push_back(makeMeshMarker(state.name + "_mecanum_" + wheel.name,
+                                                      static_cast<int>(fixedParts().size() + index), wheel.mesh,
+                                                      config_.frame_id, composePose(state.pose, wheel_pose), state.stamp,
+                                                      makeColor(0.6, 0.6, 0.6, 1.0), config_.mesh_scale, false));
+        }
+        if (transforms != nullptr) {
+            transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + wheel.name, wheel_pose,
+                                                state.stamp));
+        }
     }
 }
 
@@ -372,7 +388,7 @@ void MecanumUgvVisualizer::addPathMarker(const MecanumVisualState& state, const 
     marker.scale.x = 0.025;
     marker.color = makeColor(0.95, 0.65, 0.1, 0.95);
     assignPathHistoryPoints(visual.path, &marker.points);
-    markers->markers.push_back(marker);
+    markers->markers.push_back(std::move(marker));
 }
 
 void MecanumUgvVisualizer::addLabelMarker(const MecanumVisualState& state,

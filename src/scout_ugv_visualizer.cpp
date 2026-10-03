@@ -6,6 +6,7 @@
 #include <cmath>
 #include <regex>
 #include <string>
+#include <utility>
 
 #include <geometry_msgs/Quaternion.h>
 #include <geometry_msgs/Vector3.h>
@@ -224,6 +225,12 @@ ScoutUgvVisualizer::ScoutUgvVisualizer(const Config& config) : config_(config) {
 
 void ScoutUgvVisualizer::append(const UgvVisualState& state, visualization_msgs::MarkerArray* markers,
                                 std::vector<geometry_msgs::TransformStamped>* transforms) {
+    append(state, markers, transforms, true, true, true);
+}
+
+void ScoutUgvVisualizer::append(const UgvVisualState& state, visualization_msgs::MarkerArray* markers,
+                                std::vector<geometry_msgs::TransformStamped>* transforms,
+                                bool meshes, bool path, bool label) {
     UgvVisualState display = state;
     display.pose = placeGroundVehicleBodyPose(state.pose, scoutDisplayBodyZ());
     ModelVisualState& visual = models_[display.name];
@@ -241,14 +248,16 @@ void ScoutUgvVisualizer::append(const UgvVisualState& state, visualization_msgs:
     visual.has_previous_pose = true;
     visual.last_update_stamp = display.stamp;
 
-    transforms->push_back(
-        makeTransform(config_.frame_id, robotBodyFrame(display.name), display.pose, display.stamp));
-    transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(display.name),
-                                        labelAnchor(display.pose), display.stamp));
-    addBodyMarkers(display, markers, transforms);
-    addWheelMarkers(display, visual, markers, transforms);
-    addPathMarker(display, visual, markers);
-    addLabelMarker(display, markers);
+    if (transforms != nullptr) {
+        transforms->push_back(
+            makeTransform(config_.frame_id, robotBodyFrame(display.name), display.pose, display.stamp));
+        transforms->push_back(makeTransform(config_.frame_id, robotLabelFrame(display.name),
+                                            labelAnchor(display.pose), display.stamp));
+    }
+    addBodyMarkers(display, meshes ? markers : nullptr, transforms);
+    addWheelMarkers(display, visual, meshes ? markers : nullptr, transforms);
+    if (markers != nullptr && path) addPathMarker(display, visual, markers);
+    if (markers != nullptr && label) addLabelMarker(display, markers);
 }
 
 ScoutUgvVisualizer::MotionEstimate ScoutUgvVisualizer::estimateMotion(const ModelVisualState& visual,
@@ -302,25 +311,33 @@ void ScoutUgvVisualizer::updatePath(ModelVisualState* visual, const UgvVisualSta
 
 void ScoutUgvVisualizer::addBodyMarkers(const UgvVisualState& state, visualization_msgs::MarkerArray* markers,
                                         std::vector<geometry_msgs::TransformStamped>* transforms) const {
-    const geometry_msgs::Pose body_visual_pose =
-        composePose(state.pose, makePoseFromXyzRpy(0.0, 0.0, 0.0, 1.57, 0.0, -1.57));
-    markers->markers.push_back(makeMeshMarker(state.name + "_body", 0, kScoutBodyMesh, config_.frame_id,
-                                              body_visual_pose, state.stamp, makeColor(1.0, 1.0, 1.0, 1.0),
-                                              config_.mesh_scale, true));
+    if (markers == nullptr && transforms == nullptr) return;
+    if (markers != nullptr) {
+        const geometry_msgs::Pose body_visual_pose =
+            composePose(state.pose, makePoseFromXyzRpy(0.0, 0.0, 0.0, 1.57, 0.0, -1.57));
+        markers->markers.push_back(makeMeshMarker(state.name + "_body", 0, kScoutBodyMesh, config_.frame_id,
+                                                  body_visual_pose, state.stamp, makeColor(1.0, 1.0, 1.0, 1.0),
+                                                  config_.mesh_scale, true));
+    }
 
     const geometry_msgs::Pose box_joint_pose = makePoseFromXyzRpy(0.0, 0.0, 0.055, 0.0, 0.0, 3.14);
-    const geometry_msgs::Pose box_visual_pose =
-        composePose(composePose(state.pose, box_joint_pose), makePoseFromXyzRpy(0.0, 0.0, 0.0, 0.0, 0.0, 3.14));
-    markers->markers.push_back(makeMeshMarker(state.name + "_box", 1, kScoutBoxMesh, config_.frame_id,
-                                              box_visual_pose, state.stamp, makeColor(1.0, 1.0, 1.0, 1.0),
-                                              config_.mesh_scale, true));
-    transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/box_link", box_joint_pose,
-                                        state.stamp));
+    if (markers != nullptr) {
+        const geometry_msgs::Pose box_visual_pose =
+            composePose(composePose(state.pose, box_joint_pose), makePoseFromXyzRpy(0.0, 0.0, 0.0, 0.0, 0.0, 3.14));
+        markers->markers.push_back(makeMeshMarker(state.name + "_box", 1, kScoutBoxMesh, config_.frame_id,
+                                                  box_visual_pose, state.stamp, makeColor(1.0, 1.0, 1.0, 1.0),
+                                                  config_.mesh_scale, true));
+    }
+    if (transforms != nullptr) {
+        transforms->push_back(makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/box_link", box_joint_pose,
+                                            state.stamp));
+    }
 }
 
 void ScoutUgvVisualizer::addWheelMarkers(const UgvVisualState& state, const ModelVisualState& visual,
                                          visualization_msgs::MarkerArray* markers,
                                          std::vector<geometry_msgs::TransformStamped>* transforms) const {
+    if (markers == nullptr && transforms == nullptr) return;
     const std::vector<WheelVisual>& wheels = scoutWheels();
     for (std::size_t i = 0; i < wheels.size(); ++i) {
         const WheelVisual& wheel = wheels[i];
@@ -328,12 +345,16 @@ void ScoutUgvVisualizer::addWheelMarkers(const UgvVisualState& state, const Mode
         const geometry_msgs::Pose wheel_pose =
             makePose(makePoint(wheel.offset.x, wheel.offset.y, wheel.offset.z),
                      multiply(wheel.joint_origin_rotation, yawQuaternion(-phase)));
-        const geometry_msgs::Pose wheel_world_pose = composePose(state.pose, wheel_pose);
-        markers->markers.push_back(makeMeshMarker(state.name + "_" + wheel.link_name, static_cast<int>(i) + 2,
-                                                  kScoutWheelMesh, config_.frame_id, wheel_world_pose, state.stamp,
-                                                  makeColor(1.0, 1.0, 1.0, 1.0), config_.mesh_scale, true));
-        transforms->push_back(
-            makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + wheel.link_name, wheel_pose, state.stamp));
+        if (markers != nullptr) {
+            const geometry_msgs::Pose wheel_world_pose = composePose(state.pose, wheel_pose);
+            markers->markers.push_back(makeMeshMarker(state.name + "_" + wheel.link_name, static_cast<int>(i) + 2,
+                                                      kScoutWheelMesh, config_.frame_id, wheel_world_pose, state.stamp,
+                                                      makeColor(1.0, 1.0, 1.0, 1.0), config_.mesh_scale, true));
+        }
+        if (transforms != nullptr) {
+            transforms->push_back(
+                makeTransform(robotBodyFrame(state.name), robotFramePrefix(state.name) + "/" + wheel.link_name, wheel_pose, state.stamp));
+        }
     }
 }
 
@@ -356,7 +377,7 @@ void ScoutUgvVisualizer::addPathMarker(const UgvVisualState& state, const ModelV
     marker.color.g = 0.05;
     marker.color.b = 0.02;
     marker.color.a = 1.0;
-    markers->markers.push_back(marker);
+    markers->markers.push_back(std::move(marker));
 }
 
 void ScoutUgvVisualizer::addLabelMarker(const UgvVisualState& state, visualization_msgs::MarkerArray* markers) const {

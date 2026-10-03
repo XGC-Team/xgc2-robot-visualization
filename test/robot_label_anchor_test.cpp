@@ -12,12 +12,15 @@
 #include "xgc2_robot_visualization/scout_ugv_visualizer.hpp"
 
 #include <cmath>
+#include <algorithm>
 #include <string>
 #include <set>
 #include <vector>
 
 #include <geometry_msgs/TransformStamped.h>
 #include <gtest/gtest.h>
+#include <ros/serialization.h>
+#include <iostream>
 #include <visualization_msgs/MarkerArray.h>
 
 namespace xgc2_robot_visualization {
@@ -238,6 +241,68 @@ TEST(RobotDisplayTree, EveryBodyJointAndLabelIsIsolatedFromPlantAndOnboardFrames
     expectIsolatedDisplayTree<Fs150UavVisualizer, UavVisualState>("uav1");
     expectIsolatedDisplayTree<ScoutUgvVisualizer, UgvVisualState>("ugv1");
     expectIsolatedDisplayTree<MecanumUgvVisualizer, MecanumVisualState>("mecanum1");
+}
+
+template <typename Message>
+std::vector<uint8_t> messageBytes(const Message& message) {
+    std::vector<uint8_t> bytes(ros::serialization::serializationLength(message));
+    ros::serialization::OStream stream(bytes.data(), bytes.size());
+    ros::serialization::serialize(stream, message);
+    return bytes;
+}
+
+template <typename Visualizer, typename State>
+void expectSelectiveOutputs(const typename Visualizer::Config& config, State state) {
+    Visualizer full(config), tf_only(config), suppressed(config);
+    visualization_msgs::MarkerArray full_markers;
+    std::vector<geometry_msgs::TransformStamped> full_tf, only_tf;
+    const unsigned stamps[] = {1U, 2U, 3U, 1U, 2U};
+    for (unsigned i = 0; i < 5; ++i) {
+        state.stamp = ros::Time(stamps[i], 0);
+        state.pose.position.x = 0.2 * i;
+        state.pose.orientation.w = std::cos(0.05 * i);
+        state.pose.orientation.z = std::sin(0.05 * i);
+        full_markers.markers.clear(); full_tf.clear(); only_tf.clear();
+        full.append(state, &full_markers, &full_tf);
+        tf_only.append(state, nullptr, &only_tf, false, false, false);
+        suppressed.append(state, nullptr, nullptr, false, false, false);
+        ASSERT_EQ(full_tf.size(), only_tf.size());
+        for (std::size_t j = 0; j < full_tf.size(); ++j)
+            EXPECT_EQ(messageBytes(full_tf[j]), messageBytes(only_tf[j]));
+    }
+    visualization_msgs::MarkerArray selected;
+    tf_only.append(state, &selected, nullptr, false, true, true);
+    ASSERT_EQ(selected.markers.size(), 2U);
+    for (const auto& marker : selected.markers) {
+        auto found = std::find_if(full_markers.markers.begin(), full_markers.markers.end(),
+            [&](const visualization_msgs::Marker& expected) { return marker.ns == expected.ns; });
+        ASSERT_NE(found, full_markers.markers.end());
+        EXPECT_EQ(messageBytes(marker), messageBytes(*found));
+    }
+    visualization_msgs::MarkerArray restored;
+    std::vector<geometry_msgs::TransformStamped> restored_tf;
+    suppressed.append(state, &restored, &restored_tf);
+    EXPECT_EQ(messageBytes(restored), messageBytes(full_markers));
+    ASSERT_EQ(restored_tf.size(), full_tf.size());
+    for (std::size_t i = 0; i < full_tf.size(); ++i)
+        EXPECT_EQ(messageBytes(restored_tf[i]), messageBytes(full_tf[i]));
+    std::cout << "selective " << state.name << ": full=" << full_markers.markers.size()
+              << " no_marker=0 label_path=" << selected.markers.size()
+              << " meshes_skipped=" << full_markers.markers.size() - selected.markers.size()
+              << " path_deep_copy=0 TF/history/phase bytes equal\n";
+}
+
+TEST(RobotLabelAnchor, NullableSelectiveOutputsPreserveFS150StateAndTF) {
+    UavVisualState state; state.name = "uav-select"; state.rotors_active = true;
+    expectSelectiveOutputs<Fs150UavVisualizer>(Fs150UavVisualizer::Config{}, state);
+}
+TEST(RobotLabelAnchor, NullableSelectiveOutputsPreserveScoutStateAndTF) {
+    UgvVisualState state; state.name = "scout-select";
+    expectSelectiveOutputs<ScoutUgvVisualizer>(ScoutUgvVisualizer::Config{}, state);
+}
+TEST(RobotLabelAnchor, NullableSelectiveOutputsPreserveMecanumStateAndTF) {
+    MecanumVisualState state; state.name = "mecanum-select";
+    expectSelectiveOutputs<MecanumUgvVisualizer>(MecanumUgvVisualizer::Config{}, state);
 }
 
 } // namespace
